@@ -1,3 +1,5 @@
+.DS_Store
+vendor/
 .vscode/
 .idea/
 config.*.yaml
