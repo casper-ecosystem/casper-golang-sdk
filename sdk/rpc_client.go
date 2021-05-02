@@ -362,12 +362,12 @@ type NamedKey struct {
 
 type AssociatedKey struct {
 	AccountHash string `json:"account_hash"`
-	Weight      string `json:"weight"`
+	Weight      uint64 `json:"weight"`
 }
 
 type ActionThresholds struct {
-	Deployment    string `json:"deployment"`
-	KeyManagement string `json:"key_management"`
+	Deployment    uint64 `json:"deployment"`
+	KeyManagement uint64 `json:"key_management"`
 }
 
 type JsonContractMetadata struct {
