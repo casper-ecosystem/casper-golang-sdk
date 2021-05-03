@@ -180,6 +180,51 @@ func (c *RpcClient) GetBlockTransfersByHash(blockHash string) ([]TransferRespons
 	return result.Transfers, nil
 }
 
+func (c *RpcClient) GetValidator() (ValidatorPesponse, error) {
+	resp, err := c.rpcCall("state_get_auction_info", nil)
+	if err != nil {
+		return ValidatorPesponse{}, err
+	}
+
+	var result validatorResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return ValidatorPesponse{}, fmt.Errorf("failed to get result: #{err}")
+	}
+
+	return result.Validator, nil
+}
+
+func (c *RpcClient) GetStatus() (StatusResult, error) {
+	resp, err := c.rpcCall("info_get_status", nil)
+	if err != nil {
+		return StatusResult{}, err
+	}
+
+	var result StatusResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return StatusResult{}, fmt.Errorf("failed to get result: #{err}")
+	}
+
+	return result, nil
+}
+
+func (c *RpcClient) GetPeers() (PeerResult, error) {
+	resp, err := c.rpcCall("info_get_peers", nil)
+	if err != nil {
+		return PeerResult{}, err
+	}
+
+	var result PeerResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return PeerResult{}, fmt.Errorf("failed to get result: #{err}")
+	}
+
+	return result, nil
+}
+
 func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, error) {
 	body, err := json.Marshal(RpcRequest{
 		Version: "2.0",
@@ -395,4 +440,43 @@ type blockIdentifier struct {
 
 type balanceResponse struct {
 	BalanceValue string `json:"balance_value"`
+}
+
+type ValidatorWeight struct {
+	PublicKey	string	`json:"public_key"`
+	Weight 		string	`json:"weight"`
+}
+
+type EraValidators struct {
+	EraId				int					`json:"era_id"`
+	ValidatorWeights	[]ValidatorWeight 	`json:"validator_weights"`
+}
+
+type AuctionState struct {
+	StateRootHash	string	`json:"state_root_hash"`
+	BlockHeight 	uint64	`json:"block_height"`
+	EraValidators 	[]EraValidators `json:"era_validators"`
+}
+
+type ValidatorPesponse struct {
+	Version	string	`json:"jsonrpc"`
+	AuctionState `json:"auction_state"`
+}
+
+type validatorResult struct {
+	Validator ValidatorPesponse `json:"validator"`
+}
+
+type StatusResult struct {
+	LastAddedBlock	BlockResponse `json:"last_added_block"`
+	BuildVersion	string `json:"build_version"`
+}
+
+type Peer struct {
+	NodeId	string	`json:"node_id"`
+	Address	string	`json:"address"`
+}
+
+type PeerResult struct {
+	Peers	[]Peer	`json:"peers"`
 }
