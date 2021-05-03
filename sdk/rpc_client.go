@@ -39,12 +39,15 @@ func (c *RpcClient) GetDeploy(hash string) (DeployResult, error) {
 	return result, nil
 }
 
-func (c *RpcClient) GetBlockState(stateRootHash, key string, path []string) (StoredValue, error) {
-	resp, err := c.rpcCall("state_get_item", map[string]interface{}{
+func (c *RpcClient) GetStateItem(stateRootHash, key string, path []string) (StoredValue, error) {
+	params := map[string]interface{}{
 		"state_root_hash": stateRootHash,
 		"key":             key,
-		"path":            path,
-	})
+	}
+	if len(path) > 0 {
+		params["path"] = path
+	}
+	resp, err := c.rpcCall("state_get_item", params)
 	if err != nil {
 		return StoredValue{}, err
 	}
