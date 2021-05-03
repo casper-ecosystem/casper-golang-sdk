@@ -345,9 +345,9 @@ type StoredValue struct {
 }
 
 type JsonCLValue struct {
-	Bytes  string `json:"bytes"`
-	CLType string `json:"cl_type"`
-	Parsed int    `json:"parsed"`
+	Bytes  string      `json:"bytes"`
+	CLType string      `json:"cl_type"`
+	Parsed interface{} `json:"parsed"`
 }
 
 type JsonAccount struct {
