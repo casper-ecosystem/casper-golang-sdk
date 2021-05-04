@@ -10,11 +10,23 @@ import (
 	"reflect"
 )
 
+func MustMarshal(value interface{}) []byte {
+	res, err := Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 func Marshal(value interface{}) ([]byte, error) {
 	var w bytes.Buffer
 	enc := Encoder{w: &w}
 	_, err := enc.Encode(value)
 	return w.Bytes(), err
+}
+
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w}
 }
 
 type Encoder struct {
@@ -225,11 +237,6 @@ func (enc *Encoder) EncodeMap(v reflect.Value) (int, error) {
 	return n, nil
 }
 
-func (enc *Encoder) EncodeURef(v reflect.Value) (int, error) {
-	// FIXME
-	return 0, nil
-}
-
 func (enc *Encoder) EncodeMarshaler(v reflect.Value) (int, error) {
 	marshaler := v.Interface().(Marshaler)
 	return marshaler.Marshal(enc.w)
@@ -311,7 +318,6 @@ func (enc *Encoder) encode(v reflect.Value) (int, error) {
 		return enc.EncodeMarshaler(v)
 	}
 
-	// FIXME: URef, Key
 	switch v.Kind() {
 	case reflect.Bool:
 		return enc.EncodeBool(v.Bool())
