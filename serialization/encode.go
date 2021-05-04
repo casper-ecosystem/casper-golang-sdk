@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -8,6 +9,13 @@ import (
 	"math/big"
 	"reflect"
 )
+
+func Marshal(value interface{}) ([]byte, error) {
+	var w bytes.Buffer
+	enc := Encoder{w: &w}
+	_, err := enc.Encode(value)
+	return w.Bytes(), err
+}
 
 type Encoder struct {
 	w io.Writer
@@ -161,9 +169,21 @@ func (enc *Encoder) EncodeResult(v reflect.Value) (int, error) {
 		return n, err
 	}
 	if result {
-		n2, err = enc.encode(v.FieldByName(val.SuccessFieldName()))
+		vv := v.FieldByName(val.SuccessFieldName())
+
+		if !vv.IsValid() {
+			return n, errors.New(fmt.Sprintf("invalid element: %s", val.SuccessFieldName()))
+		}
+
+		n2, err = enc.encode(vv.Elem())
 	} else {
-		n2, err = enc.encode(v.FieldByName(val.ErrorFieldName()))
+		vv := v.FieldByName(val.ErrorFieldName())
+
+		if !vv.IsValid() {
+			return n, errors.New(fmt.Sprintf("invalid element: %s", val.ErrorFieldName()))
+		}
+
+		n2, err = enc.encode(vv.Elem())
 	}
 	n += n2
 
@@ -240,7 +260,7 @@ func (enc *Encoder) EncodeStruct(v reflect.Value) (int, error) {
 func (enc *Encoder) EncodeUnion(v reflect.Value) (int, error) {
 	u := v.Interface().(Union)
 
-	vs := byte(v.FieldByName(u.SwitchFieldName()).Int())
+	vs := byte(v.FieldByName(u.SwitchFieldName()).Uint())
 	n, err := enc.EncodeByte(vs)
 
 	if err != nil {
