@@ -56,3 +56,5 @@ type CLValue struct {
 	Tuple3    *[3]CLValue
 	PublicKey *PublicKey
 }
+
+// TODO: Union methods

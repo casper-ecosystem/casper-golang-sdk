@@ -219,7 +219,10 @@ func (enc *Encoder) EncodeTuple(v reflect.Value) (int, error) {
 }
 
 func (enc *Encoder) EncodeMap(v reflect.Value) (int, error) {
-	n := 0
+	n, err := enc.EncodeUInt32(uint32(v.Len()))
+	if err != nil {
+		return 0, err
+	}
 	for _, key := range v.MapKeys() {
 		n2, err := enc.encode(key)
 		n += n2
@@ -342,6 +345,15 @@ func (enc *Encoder) encode(v reflect.Value) (int, error) {
 	case reflect.Map:
 		return enc.EncodeMap(v)
 	case reflect.Struct:
+		if val, ok := v.Interface().(U128); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
+		if val, ok := v.Interface().(U256); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
+		if val, ok := v.Interface().(U512); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
 		if val, ok := v.Interface().(big.Int); ok {
 			return enc.EncodeBigInt(val)
 		}

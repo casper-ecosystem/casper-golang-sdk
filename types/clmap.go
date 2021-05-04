@@ -56,7 +56,7 @@ func (m *CLMap) Marshal(w io.Writer) (int, error) {
 	return n, nil
 }
 
-func (m *CLMap) Unmarshal(r io.Reader) error {
+func (m *CLMap) Unmarshal(r io.Reader) (int, error) {
 	// TODO
-	return nil
+	return 0, nil
 }
