@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"io"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 func Ed25519Random() (KeyPair, error) {
@@ -57,6 +61,16 @@ func (key *ed25519KeyPair) Sign(mes []byte) Signature {
 func (key *ed25519KeyPair) Verify(mes []byte, sign []byte) bool {
 	pubKey, _ := key.keys()
 	return ed25519.Verify(pubKey, mes, sign)
+}
+
+func (key *ed25519KeyPair) AccountHash() string {
+	pubKey, _ := key.keys()
+	buffer := append([]byte(strKeyTagEd25519), separator)
+	buffer = append(buffer, pubKey...)
+
+	hash := blake2b.Sum256(buffer)
+
+	return fmt.Sprintf("account-hash-%s", hex.EncodeToString(hash[:]))
 }
 
 func (key *ed25519KeyPair) keys() (ed25519.PublicKey, ed25519.PrivateKey) {
