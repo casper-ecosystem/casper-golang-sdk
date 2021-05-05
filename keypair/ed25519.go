@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 
 	"golang.org/x/crypto/blake2b"
@@ -81,3 +82,36 @@ func (key *ed25519KeyPair) keys() (ed25519.PublicKey, ed25519.PrivateKey) {
 	}
 	return pub, priv
 }
+
+func ParseKeyPair(publicKey []uint8, privateKey []uint8) {
+	pub, _ := ParsePublicKey(publicKey)
+	priv, _ := ParsePrivateKey(privateKey)
+}
+
+func ParseKey(bytes []uint8, from int, to int) ([]byte, error) {
+	length := len(bytes)
+	var key []uint8
+	if  length == 32 {
+		key = bytes;
+	}
+	if  length == 64 {
+		key = bytes[from:to]
+	}
+	if  length > 32 && length < 64 {
+		key = bytes[length %32:]
+	}
+	if key == nil || len(key) != 32 {
+		return nil, errors.New("Unexpected key length")
+	}
+	return key, nil
+}
+
+func ParsePublicKey(bytes []uint8) ([]byte, error) {
+	return ParseKey(bytes, 32, 64)
+}
+
+func ParsePrivateKey(bytes []uint8) ([]byte, error) {
+	return ParseKey(bytes, 0, 32)
+}
+
+
