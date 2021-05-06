@@ -4,13 +4,20 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	bs "encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"github.com/pkg/errors"
-	"io"
-
+	"github.com/robpike/filter"
 	"golang.org/x/crypto/blake2b"
+	"io"
+	"os"
+	"strings"
 )
+
+const ED25519_PEM_SECRET_KEY_TAG = "PRIVATE KEY"
+const ED25519_PEM_PUBLIC_KEY_TAG = "PUBLIC KEY"
 
 func Ed25519Random() (KeyPair, error) {
 	var rawSeed [32]byte
@@ -30,7 +37,9 @@ func Ed25519FromSeed(seed []byte) KeyPair {
 }
 
 type ed25519KeyPair struct {
-	seed []byte
+	seed 		[]byte
+	PublKey 	[]byte
+	PrivateKey 	[]byte
 }
 
 func (key *ed25519KeyPair) RawSeed() []byte {
@@ -83,14 +92,19 @@ func (key *ed25519KeyPair) keys() (ed25519.PublicKey, ed25519.PrivateKey) {
 	return pub, priv
 }
 
-func ParseKeyPair(publicKey []uint8, privateKey []uint8) {
+func ParseKeyPair(publicKey []byte, privateKey []byte) KeyPair{
 	pub, _ := ParsePublicKey(publicKey)
 	priv, _ := ParsePrivateKey(privateKey)
+	keyPair := ed25519KeyPair{
+		PublKey: pub,
+		PrivateKey: priv,
+	}
+	return &keyPair
 }
 
-func ParseKey(bytes []uint8, from int, to int) ([]byte, error) {
+func ParseKey(bytes []byte, from int, to int) ([]byte, error) {
 	length := len(bytes)
-	var key []uint8
+	var key []byte
 	if  length == 32 {
 		key = bytes;
 	}
@@ -106,12 +120,78 @@ func ParseKey(bytes []uint8, from int, to int) ([]byte, error) {
 	return key, nil
 }
 
-func ParsePublicKey(bytes []uint8) ([]byte, error) {
+func ParsePublicKey(bytes []byte) ([]byte, error) {
 	return ParseKey(bytes, 32, 64)
 }
 
-func ParsePrivateKey(bytes []uint8) ([]byte, error) {
+func ParsePrivateKey(bytes []byte) ([]byte, error) {
 	return ParseKey(bytes, 0, 32)
 }
 
+func ReadBase64File(path string) ([]byte,error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.New("can't read file")
+	}
+	resContent := bytesToString(content)
+	return ReadBase64WithPEM(resContent)
+}
 
+func bytesToString(data []byte) string {
+	return string(data[:])
+}
+
+func ReadBase64WithPEM(content string) ([]byte, error) {
+	base64 := strings.Split(content, "/\r\n/")
+	var selec = filter.Choose(base64, filterFunction).([]string)
+	join := strings.Join(selec, "")
+	res := strings.Trim(join, "\r\n")
+	return bs.StdEncoding.DecodeString(res)
+}
+
+func filterFunction(a string) bool {
+	return ! strings.HasPrefix(a, "-----")
+}
+
+func ParsePublicKeyFile(path string) ([]byte, error) {
+	key, _ := ReadBase64File(path)
+	return ParsePublicKey(key)
+}
+
+func ParsePrivateKeyFile(path string) ([]byte, error) {
+	key, _ := ReadBase64File(path)
+	return ParsePrivateKey(key)
+}
+
+func AccountHex(publicKey []byte) string {
+	dst := make([]byte, hex.EncodedLen(len(publicKey)))
+	hex.Encode(dst, publicKey)
+	return "01"+string(dst)
+}
+
+func ParseKeyFiles(pubKeyPath, privKeyPath string) KeyPair {
+	pub, _ := ParsePublicKeyFile(pubKeyPath)
+	priv, _ := ParsePublicKeyFile(privKeyPath)
+
+	keyPair := ed25519KeyPair{
+		PublKey: pub,
+		PrivateKey: priv,
+	}
+	return &keyPair
+}
+
+func (e *ed25519KeyPair) ExportPrivateKeyInPem() []byte {
+	block := &pem.Block{
+		Type: ED25519_PEM_SECRET_KEY_TAG,
+		Bytes: e.PrivateKey,
+	}
+	return pem.EncodeToMemory(block)
+}
+
+func (e *ed25519KeyPair) ExportPublicKeyInPem() []byte {
+	block := &pem.Block{
+		Type: ED25519_PEM_PUBLIC_KEY_TAG,
+		Bytes: e.PublKey,
+	}
+	return pem.EncodeToMemory(block)
+}
