@@ -4,10 +4,11 @@ import (
 	bs "encoding/base64"
 	"errors"
 	"github.com/robpike/filter"
-	"strings"
 	"os"
+	"strings"
 )
 
+//ReadBase64File reads the Base64 content of a file, get rid of PEM frames
 func ReadBase64File(path string) ([]byte,error) {
 	content, err := os.ReadFile(path)
 	if err != nil {

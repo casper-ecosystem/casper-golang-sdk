@@ -1,7 +1,6 @@
 package secp256k1
 
 import (
-	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -25,6 +24,7 @@ func (key *secp256k1KeyPair) KeyTag() keypair.KeyTag {
 	return keypair.KeyTagSecp256k1
 }
 
+// PublicKey returns Secp256k1 public key
 func (key *secp256k1KeyPair) PublicKey() keypair.PublicKey {
 	pubKey, _ := key.keys()
 
@@ -34,6 +34,7 @@ func (key *secp256k1KeyPair) PublicKey() keypair.PublicKey {
 	}
 }
 
+// Sign signs the message by using the keyPair
 func (key *secp256k1KeyPair) Sign(mes []byte) keypair.Signature {
 	_, privKey := key.keys()
 	sign, _ := privKey.Sign(mes)
@@ -43,11 +44,13 @@ func (key *secp256k1KeyPair) Sign(mes []byte) keypair.Signature {
 	}
 }
 
+// Verify verifies the signature along with the raw message
 func (key *secp256k1KeyPair) Verify(mes []byte, sign []byte) bool {
 	pubKey, _ := key.keys()
 	return pubKey.VerifySignature(mes, sign)
 }
 
+// AccountHash generates the accountHash for the Secp256K1 public key
 func (key *secp256k1KeyPair) AccountHash() string {
 	pubKey, _ := key.keys()
 	var buffer = append([]byte(keypair.StrKeyTagSecp256k1), keypair.Separator)
@@ -64,12 +67,14 @@ func (key *secp256k1KeyPair) keys() (secp256k1.PubKey, secp256k1.PrivKey){
 	return pub, priv
 }
 
+// AccountHex generates the accountHex for the Secp256K1 public key
 func AccountHex(publicKey []byte) string {
 	dst := make([]byte, hex.EncodedLen(len(publicKey)))
 	hex.Encode(dst, publicKey)
 	return "02"+string(dst)
 }
 
+// ExportPublicKeyInPem exports the public key encoded in pem
 func (key *secp256k1KeyPair) ExportPublicKeyInPem() ([]byte, error) {
 	derBytes, err := x509.MarshalPKIXPublicKey(key.PublKey)
 	if err != nil {
@@ -84,6 +89,7 @@ func (key *secp256k1KeyPair) ExportPublicKeyInPem() ([]byte, error) {
 	return pem.EncodeToMemory(block), nil
 }
 
+// ExportPrivateKeyInPem expects the private key encoded in pem
 func (key *secp256k1KeyPair) ExportPrivateKeyInPem() ([]byte, error) {
 	derKey, err := x509.MarshalECPrivateKey(key.PrivateKey)
 	if err != nil {
@@ -91,7 +97,7 @@ func (key *secp256k1KeyPair) ExportPrivateKeyInPem() ([]byte, error) {
 	}
 
 	keyBlock := &pem.Block{
-		Type:  "EC PRIVATE KEY",
+		Type:  "PRIVATE KEY",
 		Bytes: derKey,
 	}
 
@@ -106,12 +112,13 @@ func ParsePrivateKey(bytes []byte) ([]byte, error) {
 
 }
 
+// ParseKeyPair constructs keyPair from public key and private key
 func ParseKeyPair(pub, priv []byte) keypair.KeyPair {
-	public := ParsePublicKey(pub)
-	private := ParsePrivateKey(priv)
-
-	keyPair := secp256k1KeyPair{PublKey: public, PrivateKey: private}
-	return &keyPair
+	//public := ParsePublicKey(pub)
+	//private := ParsePrivateKey(priv)
+	//
+	//keyPair := secp256k1KeyPair{PublKey: public, PrivateKey: private}
+	//return &keyPair
 }
 
 func ParsePublicKeyFile(path string) ([]byte, error) {
