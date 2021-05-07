@@ -228,6 +228,23 @@ func (c *RpcClient) GetPeers() (PeerResult, error) {
 	return result, nil
 }
 
+func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult, error) {
+	resp, err := c.rpcCall("chain_get_state_root_hash", map[string]string{
+		"state_root_hash": stateRootHash,
+	})
+	if err != nil {
+		return StateRootHashResult{}, err
+	}
+
+	var result StateRootHashResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return StateRootHashResult{}, fmt.Errorf("failed to get result: %w", err)
+	}
+
+	return result, nil
+}
+
 func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, error) {
 	body, err := json.Marshal(RpcRequest{
 		Version: "2.0",
@@ -482,4 +499,8 @@ type Peer struct {
 
 type PeerResult struct {
 	Peers	[]Peer	`json:"peers"`
+}
+
+type StateRootHashResult struct {
+	StateRootHash	string `json:"state_root_hash"`
 }
