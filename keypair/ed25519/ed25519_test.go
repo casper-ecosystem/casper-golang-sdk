@@ -64,7 +64,7 @@ func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
 		fmt.Errorf("%w", err)
 	}
 
-	signKeyPair2, _ := ParsePublicKeyFile(fileName)
+	signKeyPair2, _ := ParsePrivateKeyFile(fileName)
 	encKeyPair := base64.StdEncoding.EncodeToString(signKeyPair.PublicKey().PubKeyData)
 	encKeyPair2 := base64.StdEncoding.EncodeToString(signKeyPair2)
 	assert.Equal(t, encKeyPair, encKeyPair2)
