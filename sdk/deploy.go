@@ -2,6 +2,51 @@ package sdk
 
 import "github.com/casper-ecosystem/casper-golang-sdk/keypair"
 
+type AccessRight byte
+
+const (
+	AccessRightRead AccessRight = 1 << iota
+	AccessRightWrite
+	AccessRightAdd
+	AccessRightNone AccessRight = 0
+)
+
+type URef struct {
+	AccessRight AccessRight
+	Address     [32]byte
+}
+
+type KeyType byte
+
+const (
+	KeyTypeAccount KeyType = iota
+	KeyTypeHash
+	KeyTypeURef
+)
+
+type Key struct {
+	Type    KeyType
+	Account [32]byte
+	Hash    [32]byte
+	URef    *URef
+}
+
+func (u Key) SwitchFieldName() string {
+	return "Type"
+}
+
+func (u Key) ArmForSwitch(sw byte) (string, bool) {
+	switch KeyType(sw) {
+	case KeyTypeAccount:
+		return "Account", true
+	case KeyTypeHash:
+		return "Hash", true
+	case KeyTypeURef:
+		return "URef", true
+	}
+	return "-", false
+}
+
 type Deploy struct {
 	Hash      [32]byte
 	Header    DeployHeader

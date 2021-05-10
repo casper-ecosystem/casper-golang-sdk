@@ -1,6 +1,7 @@
 package serialization
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -8,6 +9,25 @@ import (
 	"math/big"
 	"reflect"
 )
+
+func MustMarshal(value interface{}) []byte {
+	res, err := Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func Marshal(value interface{}) ([]byte, error) {
+	var w bytes.Buffer
+	enc := Encoder{w: &w}
+	_, err := enc.Encode(value)
+	return w.Bytes(), err
+}
+
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w}
+}
 
 type Encoder struct {
 	w io.Writer
@@ -161,9 +181,21 @@ func (enc *Encoder) EncodeResult(v reflect.Value) (int, error) {
 		return n, err
 	}
 	if result {
-		n2, err = enc.encode(v.FieldByName(val.SuccessFieldName()))
+		vv := v.FieldByName(val.SuccessFieldName())
+
+		if !vv.IsValid() {
+			return n, errors.New(fmt.Sprintf("invalid element: %s", val.SuccessFieldName()))
+		}
+
+		n2, err = enc.encode(vv.Elem())
 	} else {
-		n2, err = enc.encode(v.FieldByName(val.ErrorFieldName()))
+		vv := v.FieldByName(val.ErrorFieldName())
+
+		if !vv.IsValid() {
+			return n, errors.New(fmt.Sprintf("invalid element: %s", val.ErrorFieldName()))
+		}
+
+		n2, err = enc.encode(vv.Elem())
 	}
 	n += n2
 
@@ -187,7 +219,10 @@ func (enc *Encoder) EncodeTuple(v reflect.Value) (int, error) {
 }
 
 func (enc *Encoder) EncodeMap(v reflect.Value) (int, error) {
-	n := 0
+	n, err := enc.EncodeUInt32(uint32(v.Len()))
+	if err != nil {
+		return 0, err
+	}
 	for _, key := range v.MapKeys() {
 		n2, err := enc.encode(key)
 		n += n2
@@ -203,11 +238,6 @@ func (enc *Encoder) EncodeMap(v reflect.Value) (int, error) {
 	}
 
 	return n, nil
-}
-
-func (enc *Encoder) EncodeURef(v reflect.Value) (int, error) {
-	// FIXME
-	return 0, nil
 }
 
 func (enc *Encoder) EncodeMarshaler(v reflect.Value) (int, error) {
@@ -240,7 +270,7 @@ func (enc *Encoder) EncodeStruct(v reflect.Value) (int, error) {
 func (enc *Encoder) EncodeUnion(v reflect.Value) (int, error) {
 	u := v.Interface().(Union)
 
-	vs := byte(v.FieldByName(u.SwitchFieldName()).Int())
+	vs := byte(v.FieldByName(u.SwitchFieldName()).Uint())
 	n, err := enc.EncodeByte(vs)
 
 	if err != nil {
@@ -291,7 +321,6 @@ func (enc *Encoder) encode(v reflect.Value) (int, error) {
 		return enc.EncodeMarshaler(v)
 	}
 
-	// FIXME: URef, Key
 	switch v.Kind() {
 	case reflect.Bool:
 		return enc.EncodeBool(v.Bool())
@@ -316,6 +345,15 @@ func (enc *Encoder) encode(v reflect.Value) (int, error) {
 	case reflect.Map:
 		return enc.EncodeMap(v)
 	case reflect.Struct:
+		if val, ok := v.Interface().(U128); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
+		if val, ok := v.Interface().(U256); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
+		if val, ok := v.Interface().(U512); ok {
+			return enc.EncodeBigInt(val.Int)
+		}
 		if val, ok := v.Interface().(big.Int); ok {
 			return enc.EncodeBigInt(val)
 		}
