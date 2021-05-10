@@ -91,18 +91,18 @@ func (dec *Decoder) DecodeUInt64() (uint64, int, error) {
 	return val, n, err
 }
 
-func (dec *Decoder) DecodeBigNumber(expectedLength int) (big.Int, int, error) {
+func (dec *Decoder) DecodeBigNumber(v reflect.Value, expectedLength int) (int, error) {
 	var numLen [1]byte
 	n, err := io.ReadFull(dec.r, numLen[:])
 	if err != nil {
-		return big.Int{}, n, err
+		return n, err
 	}
 
 	buf := make([]byte, numLen[0])
 	n2, err := io.ReadFull(dec.r, buf)
 	n += n2
 	if err != nil {
-		return big.Int{}, n, err
+		return n, err
 	}
 
 	numBytes := make([]byte, expectedLength)
@@ -110,25 +110,22 @@ func (dec *Decoder) DecodeBigNumber(expectedLength int) (big.Int, int, error) {
 		numBytes[len(numBytes)-i-1] = b
 	}
 
-	var num big.Int
-	num.SetBytes(numBytes[:])
+	intV := v.FieldByName("Int").Interface().(big.Int)
+	intV.SetBytes(numBytes[:])
 
-	return num, n, nil
+	return n, nil
 }
 
-func (dec *Decoder) DecodeU128() (U128, int, error) {
-	num, n, err := dec.DecodeBigNumber(16)
-	return U128{num}, n, err
+func (dec *Decoder) DecodeU128(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 16)
 }
 
-func (dec *Decoder) DecodeU256() (U256, int, error) {
-	num, n, err := dec.DecodeBigNumber(32)
-	return U256{num}, n, err
+func (dec *Decoder) DecodeU256(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 32)
 }
 
-func (dec *Decoder) DecodeU512() (U512, int, error) {
-	num, n, err := dec.DecodeBigNumber(64)
-	return U512{num}, n, err
+func (dec *Decoder) DecodeU512(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 64)
 }
 
 func (dec *Decoder) DecodeString() (string, int, error) {
@@ -449,17 +446,14 @@ func (dec *Decoder) decode(v reflect.Value) (int, error) {
 	case reflect.Map:
 		return dec.DecodeMap(v)
 	case reflect.Struct:
-		if val, ok := v.Interface().(U128); ok {
-			// TODO
+		if _, ok := v.Interface().(U128); ok {
+			return dec.DecodeU128(v)
 		}
-		if val, ok := v.Interface().(U256); ok {
-			// TODO
+		if _, ok := v.Interface().(U256); ok {
+			return dec.DecodeU256(v)
 		}
-		if val, ok := v.Interface().(U512); ok {
-			// TODO
-		}
-		if val, ok := v.Interface().(big.Int); ok {
-			// TODO
+		if _, ok := v.Interface().(U512); ok {
+			return dec.DecodeU512(v)
 		}
 		if _, ok := v.Interface().(Result); ok {
 			return dec.DecodeResult(v)
