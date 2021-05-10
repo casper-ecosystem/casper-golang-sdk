@@ -7,6 +7,8 @@ type KeyPair interface {
 	AccountHash() string
 	Sign(mes []byte) Signature
 	Verify(sign []byte, mes []byte) bool
+	ExportPublicKeyInPem() []byte
+	ExportPrivateKeyInPem() []byte
 }
 
 

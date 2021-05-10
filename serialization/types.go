@@ -2,6 +2,7 @@ package serialization
 
 import (
 	"io"
+	"math/big"
 )
 
 type Marshaler interface {
@@ -9,7 +10,7 @@ type Marshaler interface {
 }
 
 type Unmarshaler interface {
-	Unmarshal(r io.Reader) error
+	Unmarshal(r io.Reader) (int, error)
 }
 
 type Tuple interface {
@@ -25,4 +26,16 @@ type Result interface {
 type Union interface {
 	ArmForSwitch(byte) (string, bool)
 	SwitchFieldName() string
+}
+
+type U128 struct {
+	big.Int
+}
+
+type U256 struct {
+	big.Int
+}
+
+type U512 struct {
+	big.Int
 }

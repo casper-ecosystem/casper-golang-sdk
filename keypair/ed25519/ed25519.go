@@ -163,19 +163,19 @@ func ParseKeyFiles(pubKeyPath, privKeyPath string) keypair.KeyPair {
 }
 
 // ExportPrivateKeyInPem expects the private key encoded in pem
-func (e *ed25519KeyPair) ExportPrivateKeyInPem() []byte {
+func (key *ed25519KeyPair) ExportPrivateKeyInPem() []byte {
 	block := &pem.Block{
 		Type:  ED25519_PEM_SECRET_KEY_TAG,
-		Bytes: e.PrivateKey,
+		Bytes: key.PrivateKey,
 	}
 	return pem.EncodeToMemory(block)
 }
 
 // ExportPublicKeyInPem exports the public key encoded in pem
-func (e *ed25519KeyPair) ExportPublicKeyInPem() []byte {
+func (key *ed25519KeyPair) ExportPublicKeyInPem() []byte {
 	block := &pem.Block{
 		Type:  ED25519_PEM_PUBLIC_KEY_TAG,
-		Bytes: e.PublKey,
+		Bytes: key.PublKey,
 	}
 	return pem.EncodeToMemory(block)
 }
