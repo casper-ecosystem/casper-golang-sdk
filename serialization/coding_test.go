@@ -3,6 +3,7 @@ package serialization
 import (
 	"encoding/hex"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,13 +70,13 @@ var cases = []struct {
 		"00",
 	},
 	{
-		"Optional big.Int(7)",
-		big.NewInt(7),
-		"010107",
+		"Optional U64",
+		toPtrU64(7),
+		"010700000000000000",
 	},
 	{
 		"Empty list",
-		[]uint32{},
+		[]uint32(nil),
 		"00000000",
 	},
 	{
@@ -234,15 +235,29 @@ func TestEncoding(t *testing.T) {
 	for _, c := range cases {
 		result, err := Marshal(c.Value)
 		if err != nil {
-			t.Errorf("failed to marshal %s: %v", c.Name, err)
+			t.Errorf("encoding failed: failed to marshal %s: %v", c.Name, err)
 		}
 
 		hexResult := hex.EncodeToString(result)
 
-		assert.Equal(t, c.HexEncodedValue, hexResult, "failed to marshal %s", c.Name)
+		assert.Equal(t, c.HexEncodedValue, hexResult, "encoding failed: failed to marshal %s", c.Name)
 	}
 }
 
 func TestDecoding(t *testing.T) {
+	for _, c := range cases {
+		buf, err := hex.DecodeString(c.HexEncodedValue)
+		if err != nil {
+			t.Errorf("decoding failed: failed to decode hex for %s: %v", c.Name, err)
+		}
+		valType := reflect.TypeOf(c.Value)
+		result := reflect.New(valType).Interface()
+		err = Unmarshal(buf, result)
+		if err != nil {
+			t.Errorf("decoding failed: failed to unmarshal %s: %v", c.Name, err)
+		}
 
+		resultIndirect := reflect.Indirect(reflect.ValueOf(result)).Interface()
+		assert.Equal(t, c.Value, resultIndirect, "decoding failed: failed to unmarshal %s", c.Name)
+	}
 }

@@ -33,8 +33,18 @@ type Decoder struct {
 }
 
 func (dec *Decoder) Decode(v interface{}) (int, error) {
-	val := reflect.ValueOf(v)
-	return dec.decode(val)
+	if v == nil {
+		return 0, fmt.Errorf("can't unmarshal to nil interface")
+	}
+
+	vv := reflect.ValueOf(v)
+	if vv.Kind() != reflect.Ptr {
+		return 0, fmt.Errorf("can't unmarshal to non-pointer '%v' - use & operator", vv.Type().String())
+	}
+	if vv.IsNil() && !vv.CanSet() {
+		return 0, fmt.Errorf("can't unmarshal to unsettable '%v' - use & operator", vv.Type().String())
+	}
+	return dec.decode(vv.Elem())
 }
 
 func (dec *Decoder) DecodeBool() (bool, int, error) {
@@ -91,18 +101,18 @@ func (dec *Decoder) DecodeUInt64() (uint64, int, error) {
 	return val, n, err
 }
 
-func (dec *Decoder) DecodeBigNumber(expectedLength int) (big.Int, int, error) {
+func (dec *Decoder) DecodeBigNumber(v reflect.Value, expectedLength int) (int, error) {
 	var numLen [1]byte
 	n, err := io.ReadFull(dec.r, numLen[:])
 	if err != nil {
-		return big.Int{}, n, err
+		return n, err
 	}
 
 	buf := make([]byte, numLen[0])
 	n2, err := io.ReadFull(dec.r, buf)
 	n += n2
 	if err != nil {
-		return big.Int{}, n, err
+		return n, err
 	}
 
 	numBytes := make([]byte, expectedLength)
@@ -110,25 +120,23 @@ func (dec *Decoder) DecodeBigNumber(expectedLength int) (big.Int, int, error) {
 		numBytes[len(numBytes)-i-1] = b
 	}
 
-	var num big.Int
-	num.SetBytes(numBytes[:])
+	var val big.Int
+	val.SetBytes(numBytes[:])
+	v.FieldByName("Int").Set(reflect.ValueOf(val))
 
-	return num, n, nil
+	return n, nil
 }
 
-func (dec *Decoder) DecodeU128() (U128, int, error) {
-	num, n, err := dec.DecodeBigNumber(16)
-	return U128{num}, n, err
+func (dec *Decoder) DecodeU128(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 16)
 }
 
-func (dec *Decoder) DecodeU256() (U256, int, error) {
-	num, n, err := dec.DecodeBigNumber(32)
-	return U256{num}, n, err
+func (dec *Decoder) DecodeU256(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 32)
 }
 
-func (dec *Decoder) DecodeU512() (U512, int, error) {
-	num, n, err := dec.DecodeBigNumber(64)
-	return U512{num}, n, err
+func (dec *Decoder) DecodeU512(v reflect.Value) (int, error) {
+	return dec.DecodeBigNumber(v, 64)
 }
 
 func (dec *Decoder) DecodeString() (string, int, error) {
@@ -235,10 +243,12 @@ func (dec *Decoder) DecodeResult(v reflect.Value) (int, error) {
 	var n2 int
 	if isSuccess {
 		successVal := v.FieldByName(val.SuccessFieldName())
-		n2, err = dec.decode(successVal)
+		successVal.Set(reflect.New(successVal.Type().Elem()))
+		n2, err = dec.decode(successVal.Elem())
 	} else {
-		successVal := v.FieldByName(val.ErrorFieldName())
-		n2, err = dec.decode(successVal)
+		errorVal := v.FieldByName(val.ErrorFieldName())
+		errorVal.Set(reflect.New(errorVal.Type().Elem()))
+		n2, err = dec.decode(errorVal.Elem())
 	}
 	n += n2
 	return n, err
@@ -250,7 +260,7 @@ func (dec *Decoder) DecodeTuple(v reflect.Value) (int, error) {
 	n := 0
 	for _, fieldName := range fields {
 		field := v.FieldByName(fieldName)
-		n2, err := dec.Decode(field)
+		n2, err := dec.decode(field)
 		n += n2
 		if err != nil {
 			return n, err
@@ -329,7 +339,7 @@ func (dec *Decoder) DecodeUnion(v reflect.Value) (int, error) {
 
 	vs := v.FieldByName(union.SwitchFieldName())
 
-	vs.SetInt(int64(discriminant))
+	vs.SetUint(uint64(discriminant))
 
 	arm, ok := union.ArmForSwitch(discriminant)
 
@@ -449,17 +459,14 @@ func (dec *Decoder) decode(v reflect.Value) (int, error) {
 	case reflect.Map:
 		return dec.DecodeMap(v)
 	case reflect.Struct:
-		if val, ok := v.Interface().(U128); ok {
-			// TODO
+		if _, ok := v.Interface().(U128); ok {
+			return dec.DecodeU128(v)
 		}
-		if val, ok := v.Interface().(U256); ok {
-			// TODO
+		if _, ok := v.Interface().(U256); ok {
+			return dec.DecodeU256(v)
 		}
-		if val, ok := v.Interface().(U512); ok {
-			// TODO
-		}
-		if val, ok := v.Interface().(big.Int); ok {
-			// TODO
+		if _, ok := v.Interface().(U512); ok {
+			return dec.DecodeU512(v)
 		}
 		if _, ok := v.Interface().(Result); ok {
 			return dec.DecodeResult(v)
