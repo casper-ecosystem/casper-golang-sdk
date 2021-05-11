@@ -14,6 +14,7 @@ const (
 	KeyTypeWithdraw
 )
 
+// Key represents key structure
 type Key struct {
 	Type       KeyType
 	Account    [32]byte

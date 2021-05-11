@@ -1,7 +1,9 @@
 package ed25519
 
 import (
+	"bytes"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -55,6 +57,8 @@ func TestEd25519KeyPair_ExportPublicKeyInPem(t *testing.T) {
 
 func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
 	signKeyPair,_ := Ed25519Random()
+	reader := bytes.NewReader(signKeyPair.RawSeed())
+	_, priv, _ := ed25519.GenerateKey(reader)
 	privKeyInPem := signKeyPair.ExportPrivateKeyInPem()
 
 	dir, _ := ioutil.TempDir("", "test")
@@ -65,7 +69,7 @@ func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
 	}
 
 	signKeyPair2, _ := ParsePrivateKeyFile(fileName)
-	encKeyPair := base64.StdEncoding.EncodeToString(signKeyPair.PublicKey().PubKeyData)
+	encKeyPair := base64.StdEncoding.EncodeToString(priv)
 	encKeyPair2 := base64.StdEncoding.EncodeToString(signKeyPair2)
 	assert.Equal(t, encKeyPair, encKeyPair2)
 }

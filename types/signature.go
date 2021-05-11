@@ -2,6 +2,7 @@ package types
 
 import "io"
 
+// Signature representing signature
 type Signature struct {
 	Tag           KeyTag
 	SignatureData []byte
