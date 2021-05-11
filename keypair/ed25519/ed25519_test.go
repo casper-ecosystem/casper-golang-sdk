@@ -1,12 +1,7 @@
 package ed25519
 
 import (
-	"bytes"
-	"crypto"
 	"crypto/ed25519"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -16,11 +11,6 @@ import (
 	"strings"
 	"testing"
 )
-
-type RsaIdentity struct {
-	public  *rsa.PublicKey
-	private *rsa.PrivateKey
-}
 
 func TestEd25519KeyPair_AccountHash(t *testing.T) {
 	signKeyPair, _ := Ed25519Random()
@@ -39,8 +29,8 @@ func TestEd25519KeyPair_AccountHash(t *testing.T) {
 }
 
 func TestEd25519KeyPair_ExportPublicKeyInPem(t *testing.T) {
-	signKeyPair,_ := Ed25519Random()
-	publKeyInPem := signKeyPair.ExportPublicKeyInPem()
+	const publKey = "48656c6c6f20476f706865722134563f"
+	publKeyInPem := ExportPublicKeyInPem(publKey)
 
 	dir, _ := ioutil.TempDir("", "test")
 	fileName := dir + "/public.pem"
@@ -50,16 +40,14 @@ func TestEd25519KeyPair_ExportPublicKeyInPem(t *testing.T) {
 	}
 
 	signKeyPair2, _ := ParsePublicKeyFile(fileName)
-	encKeyPair := base64.StdEncoding.EncodeToString(signKeyPair.PublicKey().PubKeyData)
+	encKeyPair := base64.StdEncoding.EncodeToString([]byte(publKey))
 	encKeyPair2 := base64.StdEncoding.EncodeToString(signKeyPair2)
 	assert.Equal(t, encKeyPair, encKeyPair2)
 }
 
 func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
-	signKeyPair,_ := Ed25519Random()
-	reader := bytes.NewReader(signKeyPair.RawSeed())
-	_, priv, _ := ed25519.GenerateKey(reader)
-	privKeyInPem := signKeyPair.ExportPrivateKeyInPem()
+	const privKey = "48656c6c6f20476f706865722134563f"
+	privKeyInPem := ExportPrivateKeyInPem(privKey)
 
 	dir, _ := ioutil.TempDir("", "test")
 	fileName := dir + "/private.pem"
@@ -69,57 +57,19 @@ func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
 	}
 
 	signKeyPair2, _ := ParsePrivateKeyFile(fileName)
-	encKeyPair := base64.StdEncoding.EncodeToString(priv)
+	encKeyPair := base64.StdEncoding.EncodeToString([]byte(privKey))
 	encKeyPair2 := base64.StdEncoding.EncodeToString(signKeyPair2)
 	assert.Equal(t, encKeyPair, encKeyPair2)
 }
 
 func TestEd25519KeyPair_Sign(t *testing.T) {
 	message := []byte("hello world")
-	rsa, _ := NewRsaIdentity()
-	signKeyPair,_ := Ed25519Random()
-	rsaSign, _ := rsa.Sign(message)
-	hexRsaSign := hex.EncodeToString(rsaSign)
-	hexSignKeyPairSign := hex.EncodeToString(signKeyPair.Sign(message).SignatureData)
-	assert.Equal(t, hexRsaSign, hexSignKeyPairSign)
+	const privKey = "48656c6c6f20476f706865722134563f48656c6c6f20476f706865722134563f"
+	sign := ed25519.Sign([]byte(privKey), message)
+	hexSign := hex.EncodeToString(sign)
+	edKP := ed25519KeyPair{PrivateKey: []byte(privKey)}
+	edKpSign :=edKP.Sign(message).SignatureData
+	hexEdKp := hex.EncodeToString(edKpSign)
+	assert.Equal(t, hexSign,hexEdKp )
 }
 
-func TestEd25519KeyPair_Verify(t *testing.T) {
-	message := []byte("hello world")
-	rsa, _ := NewRsaIdentity()
-	signKeyPair,_ := Ed25519Random()
-	rsaSign,_ := rsa.Sign(message)
-	RsaVerify := rsa.Verify(message, rsaSign, rsa.public)
-	edSign := signKeyPair.Sign(message)
-	edVerify := signKeyPair.Verify(edSign.SignatureData, message)
-	assert.Equal(t, RsaVerify, edVerify)
-}
-
-func (r *RsaIdentity) Sign(msg []byte) ([]byte, error) {
-	hs := r.getHashSum(msg)
-	return rsa.SignPKCS1v15(rand.Reader, r.private, crypto.SHA256, hs)
-}
-
-func (r *RsaIdentity) getHashSum(msg []byte) []byte {
-	h := sha256.New()
-	h.Write(msg)
-	return h.Sum(nil)
-}
-
-func NewRsaIdentity() (*RsaIdentity, error) {
-	identity := new(RsaIdentity)
-
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return identity, err
-	}
-
-	identity.private = priv
-	identity.public = &priv.PublicKey
-	return identity, nil
-}
-
-func (r *RsaIdentity) Verify(msg []byte, sig []byte, pk *rsa.PublicKey) error {
-	hs := r.getHashSum(msg)
-	return rsa.VerifyPKCS1v15(pk, crypto.SHA256, hs, sig)
-}

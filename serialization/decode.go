@@ -37,7 +37,8 @@ func (dec *Decoder) Decode(v interface{}) (int, error) {
 	return dec.decode(val)
 }
 
-// DecodeBool decodes bool
+// DecodeBool decodes bool.
+// Returns the number of bytes read
 func (dec *Decoder) DecodeBool() (bool, int, error) {
 	val, n, err := dec.DecodeByte()
 	if err != nil {

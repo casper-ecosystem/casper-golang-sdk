@@ -23,7 +23,7 @@ func bytesToString(data []byte) string {
 }
 
 func ReadBase64WithPEM(content string) ([]byte, error) {
-	base64 := strings.Split(content, "/\r\n/")
+	base64 := strings.Split(content, "\n")
 	var selec = filter.Choose(base64, filterFunction).([]string)
 	join := strings.Join(selec, "")
 	res := strings.Trim(join, "\r\n")
