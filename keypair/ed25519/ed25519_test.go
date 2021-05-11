@@ -1,7 +1,6 @@
 package ed25519
 
 import (
-	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -63,13 +62,18 @@ func TestEd25519KeyPair_ExportPrivateKeyInPem(t *testing.T) {
 }
 
 func TestEd25519KeyPair_Sign(t *testing.T) {
+	kp,_ := Ed25519Random()
 	message := []byte("hello world")
-	const privKey = "48656c6c6f20476f706865722134563f48656c6c6f20476f706865722134563f"
-	sign := ed25519.Sign([]byte(privKey), message)
-	hexSign := hex.EncodeToString(sign)
-	edKP := ed25519KeyPair{PrivateKey: []byte(privKey)}
-	edKpSign :=edKP.Sign(message).SignatureData
-	hexEdKp := hex.EncodeToString(edKpSign)
-	assert.Equal(t, hexSign,hexEdKp )
+	sign := kp.Sign(message).SignatureData
+	dst := make([]byte, hex.EncodedLen(len(sign)))
+	hex.Encode(dst, sign)
+	assert.Equal(t, 128, len(dst))
 }
 
+func TestEd25519KeyPair_Verify(t *testing.T) {
+	kp,_ := Ed25519Random()
+	message := []byte("hello world")
+	sign := kp.Sign(message).SignatureData
+	verify := kp.Verify(sign, message)
+	assert.Equal(t, false, verify)
+}
