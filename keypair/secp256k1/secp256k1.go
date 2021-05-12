@@ -16,6 +16,12 @@ type secp256k1KeyPair struct {
 	PrivateKey 	[]byte
 }
 
+func Secp256k1Random() keypair.KeyPair {
+	priv := secp256k1.GenPrivKey()
+	pub := priv.PubKey().Bytes()
+	return &secp256k1KeyPair{PublKey: pub, PrivateKey: priv}
+}
+
 func (key *secp256k1KeyPair) RawSeed() []byte {
 	return key.seed
 }
@@ -75,65 +81,60 @@ func AccountHex(publicKey []byte) string {
 }
 
 // ExportPublicKeyInPem exports the public key encoded in pem
-func (key *secp256k1KeyPair) ExportPublicKeyInPem() ([]byte, error) {
-	derBytes, err := x509.MarshalPKIXPublicKey(key.PublKey)
-	if err != nil {
-		return nil, err
-	}
+func ExportPublicKeyInPem(publicKey []byte) []byte {
+	x509EncodedPub, _ := x509.MarshalPKIXPublicKey(publicKey)
+	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
 
-	block := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: derBytes,
-	}
-
-	return pem.EncodeToMemory(block), nil
+	return pemEncodedPub
 }
 
 // ExportPrivateKeyInPem expects the private key encoded in pem
-func (key *secp256k1KeyPair) ExportPrivateKeyInPem() ([]byte, error) {
-	derKey, err := x509.MarshalECPrivateKey(key.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
+func ExportPrivateKeyInPem(privateKey []byte) []byte {
+	x509Encoded, _ := x509.MarshalPKCS8PrivateKey(privateKey)
+	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: x509Encoded})
 
-	keyBlock := &pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: derKey,
-	}
-
-	return pem.EncodeToMemory(keyBlock), nil
+	return pemEncoded
 }
 
-func ParsePublicKey(bytes []byte) ([]byte, error) {
+func ParsePublicKey(pemEncodedPub string) []byte {
+	blockPub, _ := pem.Decode([]byte(pemEncodedPub))
+	x509EncodedPub := blockPub.Bytes
+	genericPublicKey, _ := x509.ParsePKIXPublicKey(x509EncodedPub)
+	publicKey := genericPublicKey.([]byte)
 
+	return publicKey
 }
 
-func ParsePrivateKey(bytes []byte) ([]byte, error) {
-
+func ParsePrivateKey(pemEncoded string) []byte {
+	block, _ := pem.Decode([]byte(pemEncoded))
+	x509Encoded := block.Bytes
+	privateKey, _ := x509.ParseECPrivateKey(x509Encoded)
+	res,_ := x509.MarshalECPrivateKey(privateKey)
+	return res
 }
 
 // ParseKeyPair constructs keyPair from public key and private key
-func ParseKeyPair(pub, priv []byte) keypair.KeyPair {
-	//public := ParsePublicKey(pub)
-	//private := ParsePrivateKey(priv)
-	//
-	//keyPair := secp256k1KeyPair{PublKey: public, PrivateKey: private}
-	//return &keyPair
+func ParseKeyPair(publicKey, privateKey string) keypair.KeyPair {
+	pub := ParsePublicKey(publicKey)
+	priv := ParsePrivateKey(privateKey)
+	keyPair := secp256k1KeyPair{PublKey: pub, PrivateKey: priv}
+
+	return &keyPair
 }
 
-func ParsePublicKeyFile(path string) ([]byte, error) {
+func ParsePublicKeyFile(path string) []byte {
 	key, _ := keypair.ReadBase64File(path)
-	return ParsePublicKey(key)
+	return ParsePublicKey(string(key))
 }
 
-func ParsePrivateKeyFile(path string) ([]byte, error) {
+func ParsePrivateKeyFile(path string) []byte {
 	key, _ := keypair.ReadBase64File(path)
-	return ParsePrivateKey(key)
+	return ParsePrivateKey(string(key))
 }
 
 func ParseKeyFiles(pubKeyPath, privKeyPath string) keypair.KeyPair {
-	pub, _ := ParsePublicKeyFile(pubKeyPath)
-	priv, _ := ParsePublicKeyFile(privKeyPath)
+	pub := ParsePublicKeyFile(pubKeyPath)
+	priv := ParsePrivateKeyFile(privKeyPath)
 
 	keyPair := secp256k1KeyPair{
 		PublKey: pub,
