@@ -8,3 +8,5 @@ type KeyPair interface {
 	Sign(mes []byte) Signature
 	Verify(sign []byte, mes []byte) bool
 }
+
+

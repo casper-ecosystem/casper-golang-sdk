@@ -47,6 +47,8 @@ func (dec *Decoder) Decode(v interface{}) (int, error) {
 	return dec.decode(vv.Elem())
 }
 
+// DecodeBool decodes bool.
+// Returns the number of bytes read
 func (dec *Decoder) DecodeBool() (bool, int, error) {
 	val, n, err := dec.DecodeByte()
 	if err != nil {
@@ -63,6 +65,7 @@ func (dec *Decoder) DecodeBool() (bool, int, error) {
 	return false, 0, errors.New("bool not 0 or 1")
 }
 
+// DecodeInt32 decodes int32
 func (dec *Decoder) DecodeInt32() (int32, int, error) {
 	var buf [4]byte
 	n, err := io.ReadFull(dec.r, buf[:])
@@ -71,6 +74,7 @@ func (dec *Decoder) DecodeInt32() (int32, int, error) {
 	return int32(val), n, err
 }
 
+// DecodeInt64 decodes int64
 func (dec *Decoder) DecodeInt64() (int64, int, error) {
 	var buf [8]byte
 	n, err := io.ReadFull(dec.r, buf[:])
@@ -79,12 +83,14 @@ func (dec *Decoder) DecodeInt64() (int64, int, error) {
 	return int64(val), n, err
 }
 
+// DecodeByte decodes byte
 func (dec *Decoder) DecodeByte() (byte, int, error) {
 	var buf [1]byte
 	n, err := io.ReadFull(dec.r, buf[:])
 	return buf[0], n, err
 }
 
+// DecodeUInt32 decodes uint32
 func (dec *Decoder) DecodeUInt32() (uint32, int, error) {
 	var buf [4]byte
 	n, err := io.ReadFull(dec.r, buf[:])
@@ -93,6 +99,7 @@ func (dec *Decoder) DecodeUInt32() (uint32, int, error) {
 	return val, n, err
 }
 
+// DecodeUInt64 decodes uint64
 func (dec *Decoder) DecodeUInt64() (uint64, int, error) {
 	var buf [8]byte
 	n, err := io.ReadFull(dec.r, buf[:])
@@ -127,18 +134,22 @@ func (dec *Decoder) DecodeBigNumber(v reflect.Value, expectedLength int) (int, e
 	return n, nil
 }
 
+// DecodeU128 decodes uint128
 func (dec *Decoder) DecodeU128(v reflect.Value) (int, error) {
 	return dec.DecodeBigNumber(v, 16)
 }
 
+// DecodeU256 decodes uint256
 func (dec *Decoder) DecodeU256(v reflect.Value) (int, error) {
 	return dec.DecodeBigNumber(v, 32)
 }
 
+// DecodeU512 decodes decodes uint512
 func (dec *Decoder) DecodeU512(v reflect.Value) (int, error) {
 	return dec.DecodeBigNumber(v, 64)
 }
 
+// DecodeString decodes string
 func (dec *Decoder) DecodeString() (string, int, error) {
 	length, n, err := dec.DecodeUInt32()
 	if err != nil {
@@ -167,6 +178,7 @@ func (dec *Decoder) DecodeOptional(v reflect.Value) (int, error) {
 	return n, err
 }
 
+// DecodeArray decodes array
 func (dec *Decoder) DecodeArray(v reflect.Value) (int, error) {
 	length, n, err := dec.DecodeUInt32()
 	if err != nil {
@@ -202,6 +214,7 @@ func (dec *Decoder) DecodeArray(v reflect.Value) (int, error) {
 	return n, nil
 }
 
+// DecodeFixedArray decodes array for which the size is determined when the array is created
 func (dec *Decoder) DecodeFixedArray(v reflect.Value) (int, error) {
 	n := 0
 	if v.Type().Elem().Kind() == reflect.Uint8 {
@@ -254,6 +267,7 @@ func (dec *Decoder) DecodeResult(v reflect.Value) (int, error) {
 	return n, err
 }
 
+// DecodeTuple decodes tuple
 func (dec *Decoder) DecodeTuple(v reflect.Value) (int, error) {
 	val := v.Interface().(Tuple)
 	fields := val.TupleFields()
@@ -270,6 +284,7 @@ func (dec *Decoder) DecodeTuple(v reflect.Value) (int, error) {
 	return n, nil
 }
 
+//DecodeMap decodes map
 func (dec *Decoder) DecodeMap(v reflect.Value) (int, error) {
 	mapLen, n, err := dec.DecodeUInt32()
 	if err != nil {
@@ -307,6 +322,7 @@ func (dec *Decoder) DecodeUnmarshaler(v reflect.Value) (int, error) {
 	return unmarshaler.Unmarshal(dec.r)
 }
 
+// DecodeStruct decodes struct
 func (dec *Decoder) DecodeStruct(v reflect.Value) (int, error) {
 	var n int
 	vt := v.Type()
@@ -329,6 +345,7 @@ func (dec *Decoder) DecodeStruct(v reflect.Value) (int, error) {
 	return n, nil
 }
 
+// DecodeUnion decodes union
 func (dec *Decoder) DecodeUnion(v reflect.Value) (int, error) {
 	union := v.Interface().(Union)
 

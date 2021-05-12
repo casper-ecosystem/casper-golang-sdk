@@ -9,6 +9,7 @@ const (
 	KeyTagSecp256k1
 )
 
+// PublicKey representing public key
 type PublicKey struct {
 	Tag        KeyTag
 	PubKeyData []byte

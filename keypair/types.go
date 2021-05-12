@@ -10,9 +10,9 @@ const (
 )
 
 const (
-	strKeyTagEd25519        = "ed25519"
-	strKeyTagSecp256k1      = "secp256k1"
-	separator          byte = 0
+	StrKeyTagEd25519        = "ed25519"
+	StrKeyTagSecp256k1      = "secp256k1"
+	Separator          byte = 0
 )
 
 type PublicKey struct {

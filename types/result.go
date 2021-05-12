@@ -1,5 +1,6 @@
 package types
 
+// CLValueResult representing a result of an operation that might have failed
 type CLValueResult struct {
 	IsSuccess bool
 	Success   *CLValue
