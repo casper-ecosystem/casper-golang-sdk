@@ -228,6 +228,29 @@ func (c *RpcClient) GetPeers() (PeerResult, error) {
 	return result, nil
 }
 
+func (c *RpcClient) ParsePaymentAmount(args []json.RawMessage) (string, error) {
+	if len(args) != 2 {
+		return "0", fmt.Errorf("failed to parse payment amount")
+	}
+	var amountString string
+	json.Unmarshal(args[0], &amountString)
+	if amountString != "amount" {
+		return "0", fmt.Errorf("failed to recognize payment amount")
+	}
+
+	var clValue JsonPaymentValue
+	err := json.Unmarshal(args[1], &clValue)
+	if err != nil {
+		return "0", fmt.Errorf("failed to unmarshal payment amount")
+	}
+
+	return clValue.Parsed, nil
+}
+
+func (c *RpcClient) ReadPaymentAmount(deploy *JsonDeploy) (string, error) {
+	return c.ParsePaymentAmount(deploy.Payment.ModuleBytes.Args[0])
+}
+
 func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult, error) {
 	resp, err := c.rpcCall("chain_get_state_root_hash", map[string]string{
 		"state_root_hash": stateRootHash,
@@ -359,7 +382,20 @@ type DeployResult struct {
 type JsonDeploy struct {
 	Hash      string           `json:"hash"`
 	Header    JsonDeployHeader `json:"header"`
+	Payment   JsonPayment      `json:"payment"`
 	Approvals []JsonApproval   `json:"approvals"`
+}
+
+type JsonPayment struct {
+	ModuleBytes JsonModuleBytes `json:"ModuleBytes"`
+}
+
+type JsonModuleBytes struct {
+	ModuleBytes string              `json:"module_bytes"`
+	Args        [][]json.RawMessage `json:"args"`
+}
+
+type JsonArgs struct {
 }
 
 type JsonDeployHeader struct {
@@ -410,6 +446,12 @@ type JsonCLValue struct {
 	Bytes  string      `json:"bytes"`
 	CLType string      `json:"cl_type"`
 	Parsed interface{} `json:"parsed"`
+}
+
+type JsonPaymentValue struct {
+	Bytes  string `json:"bytes"`
+	CLType string `json:"cl_type"`
+	Parsed string `json:"parsed"`
 }
 
 type JsonAccount struct {
