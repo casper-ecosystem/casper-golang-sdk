@@ -419,8 +419,9 @@ type JsonExecutionResult struct {
 }
 
 type ExecutionResult struct {
-	Success      SuccessExecutionResult `json:"success"`
-	ErrorMessage *string                `json:"error_message,omitempty"`
+	Success      *SuccessExecutionResult `json:"success"`
+	Failure      *SuccessExecutionResult `json:"failure"`
+	ErrorMessage *string                 `json:"error_message,omitempty"`
 }
 
 type SuccessExecutionResult struct {
