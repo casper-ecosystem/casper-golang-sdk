@@ -248,6 +248,9 @@ func (c *RpcClient) ParsePaymentAmount(args []json.RawMessage) (string, error) {
 }
 
 func (c *RpcClient) ReadPaymentAmount(deploy *JsonDeploy) (string, error) {
+	if len(deploy.Payment.ModuleBytes.Args) == 0 {
+		return "0", nil
+	}
 	return c.ParsePaymentAmount(deploy.Payment.ModuleBytes.Args[0])
 }
 
