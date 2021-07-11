@@ -228,6 +228,32 @@ func (c *RpcClient) GetPeers() (PeerResult, error) {
 	return result, nil
 }
 
+func (c *RpcClient) ParsePaymentAmount(args []json.RawMessage) (string, error) {
+	if len(args) != 2 {
+		return "0", fmt.Errorf("failed to parse payment amount")
+	}
+	var amountString string
+	json.Unmarshal(args[0], &amountString)
+	if amountString != "amount" {
+		return "0", fmt.Errorf("failed to recognize payment amount")
+	}
+
+	var clValue JsonPaymentValue
+	err := json.Unmarshal(args[1], &clValue)
+	if err != nil {
+		return "0", fmt.Errorf("failed to unmarshal payment amount")
+	}
+
+	return clValue.Parsed, nil
+}
+
+func (c *RpcClient) ReadPaymentAmount(deploy *JsonDeploy) (string, error) {
+	if len(deploy.Payment.ModuleBytes.Args) == 0 {
+		return "0", nil
+	}
+	return c.ParsePaymentAmount(deploy.Payment.ModuleBytes.Args[0])
+}
+
 func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult, error) {
 	resp, err := c.rpcCall("chain_get_state_root_hash", map[string]string{
 		"state_root_hash": stateRootHash,
@@ -307,14 +333,14 @@ type transferResult struct {
 }
 
 type TransferResponse struct {
-	ID         *string `json:"id,omitempty"`
-	DeployHash string  `json:"deploy_hash"`
-	From       string  `json:"from"`
-	To         string  `json:"to"`
-	Source     string  `json:"source"`
-	Target     string  `json:"target"`
-	Amount     string  `json:"amount"`
-	Gas        string  `json:"gas"`
+	ID         json.Number `json:"id,omitempty"`
+	DeployHash string      `json:"deploy_hash"`
+	From       string      `json:"from"`
+	To         string      `json:"to"`
+	Source     string      `json:"source"`
+	Target     string      `json:"target"`
+	Amount     string      `json:"amount"`
+	Gas        string      `json:"gas"`
 }
 
 type blockResult struct {
@@ -359,7 +385,20 @@ type DeployResult struct {
 type JsonDeploy struct {
 	Hash      string           `json:"hash"`
 	Header    JsonDeployHeader `json:"header"`
+	Payment   JsonPayment      `json:"payment"`
 	Approvals []JsonApproval   `json:"approvals"`
+}
+
+type JsonPayment struct {
+	ModuleBytes JsonModuleBytes `json:"ModuleBytes"`
+}
+
+type JsonModuleBytes struct {
+	ModuleBytes string              `json:"module_bytes"`
+	Args        [][]json.RawMessage `json:"args"`
+}
+
+type JsonArgs struct {
 }
 
 type JsonDeployHeader struct {
@@ -383,8 +422,9 @@ type JsonExecutionResult struct {
 }
 
 type ExecutionResult struct {
-	Success      SuccessExecutionResult `json:"success"`
-	ErrorMessage *string                `json:"error_message,omitempty"`
+	Success      *SuccessExecutionResult `json:"success"`
+	Failure      *SuccessExecutionResult `json:"failure"`
+	ErrorMessage *string                 `json:"error_message,omitempty"`
 }
 
 type SuccessExecutionResult struct {
@@ -410,6 +450,12 @@ type JsonCLValue struct {
 	Bytes  string      `json:"bytes"`
 	CLType string      `json:"cl_type"`
 	Parsed interface{} `json:"parsed"`
+}
+
+type JsonPaymentValue struct {
+	Bytes  string `json:"bytes"`
+	CLType string `json:"cl_type"`
+	Parsed string `json:"parsed"`
 }
 
 type JsonAccount struct {
@@ -463,23 +509,23 @@ type balanceResponse struct {
 }
 
 type ValidatorWeight struct {
-	PublicKey	string	`json:"public_key"`
-	Weight 		string	`json:"weight"`
+	PublicKey string `json:"public_key"`
+	Weight    string `json:"weight"`
 }
 
 type EraValidators struct {
-	EraId				int					`json:"era_id"`
-	ValidatorWeights	[]ValidatorWeight 	`json:"validator_weights"`
+	EraId            int               `json:"era_id"`
+	ValidatorWeights []ValidatorWeight `json:"validator_weights"`
 }
 
 type AuctionState struct {
-	StateRootHash	string	`json:"state_root_hash"`
-	BlockHeight 	uint64	`json:"block_height"`
-	EraValidators 	[]EraValidators `json:"era_validators"`
+	StateRootHash string          `json:"state_root_hash"`
+	BlockHeight   uint64          `json:"block_height"`
+	EraValidators []EraValidators `json:"era_validators"`
 }
 
 type ValidatorPesponse struct {
-	Version	string	`json:"jsonrpc"`
+	Version      string `json:"jsonrpc"`
 	AuctionState `json:"auction_state"`
 }
 
@@ -488,19 +534,19 @@ type validatorResult struct {
 }
 
 type StatusResult struct {
-	LastAddedBlock	BlockResponse `json:"last_added_block"`
-	BuildVersion	string `json:"build_version"`
+	LastAddedBlock BlockResponse `json:"last_added_block"`
+	BuildVersion   string        `json:"build_version"`
 }
 
 type Peer struct {
-	NodeId	string	`json:"node_id"`
-	Address	string	`json:"address"`
+	NodeId  string `json:"node_id"`
+	Address string `json:"address"`
 }
 
 type PeerResult struct {
-	Peers	[]Peer	`json:"peers"`
+	Peers []Peer `json:"peers"`
 }
 
 type StateRootHashResult struct {
-	StateRootHash	string `json:"state_root_hash"`
+	StateRootHash string `json:"state_root_hash"`
 }
