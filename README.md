@@ -47,11 +47,11 @@ resp, err := client.GetAccountBalance(stateRootHash, balanceUref)
 ## KeyPair package usage
 
 ```
-import "github.com/casper-ecosystem/casper-golang-sdk/keypair"
+import "github.com/casper-ecosystem/casper-golang-sdk/keypair/ed25519"
 
 // Creating a random Ed25519 keypair
-edKeyPair := keypair.ed25519.Ed25519Random()
+edKeyPair, _ := ed25519.Ed25519Random()
 
 // Getting Ed25519 public key
-edPubKey := keypair.ed22519.PublicKey()
+edPubKey := edKeyPair.PublicKey()
 ```
