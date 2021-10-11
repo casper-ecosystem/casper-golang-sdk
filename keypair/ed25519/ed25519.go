@@ -36,9 +36,9 @@ func Ed25519FromSeed(seed []byte) keypair.KeyPair {
 }
 
 type ed25519KeyPair struct {
-	seed 		[]byte
-	PublKey 	[]byte
-	PrivateKey 	[]byte
+	seed       []byte
+	publicKey  []byte
+	privateKey []byte
 }
 
 func (key *ed25519KeyPair) RawSeed() []byte {
@@ -53,7 +53,7 @@ func (key *ed25519KeyPair) KeyTag() keypair.KeyTag {
 func (key *ed25519KeyPair) PublicKey() keypair.PublicKey {
 	pubKey, _ := key.keys()
 
-	return keypair.PublicKey {
+	return keypair.PublicKey{
 		Tag:        key.KeyTag(),
 		PubKeyData: pubKey,
 	}
@@ -96,28 +96,29 @@ func (key *ed25519KeyPair) keys() (ed25519.PublicKey, ed25519.PrivateKey) {
 	return pub, priv
 }
 
-// ParseKeyPair constructs keyPair from a public key and private key
-func ParseKeyPair(publicKey []byte, privateKey []byte) keypair.KeyPair {
-	pub, _ := ParsePublicKey(publicKey)
-	priv, _ := ParsePrivateKey(privateKey)
-	keyPair := ed25519KeyPair{
-		PublKey: pub,
-		PrivateKey: priv,
+// ParseKeyPair constructs keyPair from a private key
+func ParseKeyPair(privateKey []byte) (keypair.KeyPair, error) {
+	priv, err := ParsePrivateKey(privateKey)
+	if err != nil {
+		return nil, err
 	}
-	return &keyPair
+	keyPair := ed25519KeyPair{
+		seed: priv,
+	}
+	return &keyPair, nil
 }
 
 func ParseKey(bytes []byte, from int, to int) ([]byte, error) {
 	length := len(bytes)
 	var key []byte
-	if  length == 32 {
-		key = bytes;
+	if length == 32 {
+		key = bytes
 	}
-	if  length == 64 {
+	if length == 64 {
 		key = bytes[from:to]
 	}
-	if  length > 32 && length < 64 {
-		key = bytes[length %32:]
+	if length > 32 && length < 64 {
+		key = bytes[length%32:]
 	}
 	if key == nil || len(key) != 32 {
 		return nil, errors.New("Unexpected key length")
@@ -147,19 +148,20 @@ func ParsePrivateKeyFile(path string) ([]byte, error) {
 func AccountHex(publicKey []byte) string {
 	dst := make([]byte, hex.EncodedLen(len(publicKey)))
 	hex.Encode(dst, publicKey)
-	return "01"+string(dst)
+	return "01" + string(dst)
 }
 
-// ParseKeyFiles parses the key pair from publicKey file and privateKey file
-func ParseKeyFiles(pubKeyPath, privKeyPath string) keypair.KeyPair {
-	pub, _ := ParsePublicKeyFile(pubKeyPath)
-	priv, _ := ParsePublicKeyFile(privKeyPath)
+// ParseKeyFiles parses the key pair from a privateKey file
+func ParseKeyFiles(privKeyPath string) (keypair.KeyPair, error) {
+	priv, err := ParsePrivateKeyFile(privKeyPath)
+	if err != nil {
+		return nil, err
+	}
 
 	keyPair := ed25519KeyPair{
-		PublKey: pub,
-		PrivateKey: priv,
+		seed: priv,
 	}
-	return &keyPair
+	return &keyPair, nil
 }
 
 // ExportPrivateKeyInPem expects the private key encoded in pem
