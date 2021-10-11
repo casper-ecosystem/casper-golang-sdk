@@ -36,7 +36,13 @@ type Encoder struct {
 }
 
 func (enc *Encoder) Encode(v interface{}) (int, error) {
-	val := reflect.ValueOf(v)
+	var val reflect.Value
+	switch v.(type) {
+	case reflect.Value:
+		val = v.(reflect.Value)
+	default:
+		val = reflect.ValueOf(v)
+	}
 	return enc.encode(val)
 }
 
