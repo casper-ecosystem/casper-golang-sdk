@@ -4,24 +4,34 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 type RpcClient struct {
-	endpoint string
+	endpoint *url.URL
 }
 
-func NewRpcClient(endpoint string) *RpcClient {
-	return &RpcClient{
-		endpoint: endpoint,
+// NewRpcClient create a new RPC client with specified URL.
+// URL should contain RPC path for example http://159.65.118.250:7777/rpc.
+func NewRpcClient(endpoint string) (*RpcClient, error) {
+	parsedUrl, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
 	}
+	return &RpcClient{
+		endpoint: parsedUrl,
+	}, nil
 }
 
+// GetDeploy gets information about a deploy with specified hash.
 func (c *RpcClient) GetDeploy(hash string) (DeployResult, error) {
 	resp, err := c.rpcCall("info_get_deploy", map[string]string{
 		"deploy_hash": hash,
@@ -39,6 +49,9 @@ func (c *RpcClient) GetDeploy(hash string) (DeployResult, error) {
 	return result, nil
 }
 
+// GetStateItem retrieves a stored value from the network.
+// key can be: public key in hex format, account hash, contract address hash, uref, transfer hash or deploy-info hash.
+// path is optional path to the item.
 func (c *RpcClient) GetStateItem(stateRootHash, key string, path []string) (StoredValue, error) {
 	params := map[string]interface{}{
 		"state_root_hash": stateRootHash,
@@ -61,6 +74,7 @@ func (c *RpcClient) GetStateItem(stateRootHash, key string, path []string) (Stor
 	return result.StoredValue, nil
 }
 
+// GetAccountBalance returns balance for specified uref and state root hash.
 func (c *RpcClient) GetAccountBalance(stateRootHash, balanceUref string) (big.Int, error) {
 	resp, err := c.rpcCall("state_get_balance", map[string]string{
 		"state_root_hash": stateRootHash,
@@ -81,8 +95,57 @@ func (c *RpcClient) GetAccountBalance(stateRootHash, balanceUref string) (big.In
 	return balance, nil
 }
 
-func (c *RpcClient) GetLatestBlock() (BlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block", nil)
+// GetLatestAccountBalance returns latest balance for specified uref.
+func (c *RpcClient) GetLatestAccountBalance(balanceUref string) (big.Int, error) {
+	result, err := c.GetLatestStateRootHash()
+	if err != nil {
+		return big.Int{}, err
+	}
+	balance, err := c.GetAccountBalance(result.StateRootHash, balanceUref)
+	if err != nil {
+		return big.Int{}, err
+	}
+	return balance, nil
+}
+
+// GetAccountBalanceUrefByPublicKeyHex returns main/balance purse for specified public key in hex format.
+func (c *RpcClient) GetAccountBalanceUrefByPublicKeyHex(stateRootHash, hex string) (string, error) {
+	value, err := c.GetStateItem(stateRootHash, hex, nil)
+	if err != nil {
+		return "", nil
+	}
+	if value.Account == nil {
+		return "", errors.New("supplied key is not an Account")
+	}
+	return value.Account.MainPurse, nil
+}
+
+// GetAccountBalanceUrefByPublicKeyHash returns main/balance purse for specified public key hash.
+func (c *RpcClient) GetAccountBalanceUrefByPublicKeyHash(stateRootHash, hash string) (string, error) {
+	value, err := c.GetStateItem(stateRootHash, "account-hash-"+hash, nil)
+	if err != nil {
+		return "", err
+	}
+	if value.Account == nil {
+		return "", errors.New("supplied key is not an Account")
+	}
+	return value.Account.MainPurse, nil
+}
+
+// GetAccountBalanceUrefByPublicKey returns main/balance purse for specified public key.
+func (c *RpcClient) GetAccountBalanceUrefByPublicKey(stateRootHash string, key keypair.PublicKey) (string, error) {
+	value, err := c.GetStateItem(stateRootHash, "account-hash-"+key.AccountHashHex(), nil)
+	if err != nil {
+		return "", nil
+	}
+	if value.Account == nil {
+		return "", errors.New("supplied key is not an Account")
+	}
+	return value.Account.MainPurse, nil
+}
+
+func (c *RpcClient) getBlock(params blockParams) (BlockResponse, error) {
+	resp, err := c.rpcCall("chain_get_block", params)
 	if err != nil {
 		return BlockResponse{}, err
 	}
@@ -96,44 +159,41 @@ func (c *RpcClient) GetLatestBlock() (BlockResponse, error) {
 	return result.Block, nil
 }
 
+// GetLatestBlock returns the latest block information.
+func (c *RpcClient) GetLatestBlock() (BlockResponse, error) {
+	block, err := c.getBlock(blockParams{})
+	if err != nil {
+		return BlockResponse{}, err
+	}
+	return block, nil
+}
+
+// GetBlockByHeight returns a block specified by height.
 func (c *RpcClient) GetBlockByHeight(height uint64) (BlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block",
+	block, err := c.getBlock(
 		blockParams{blockIdentifier{
 			Height: height,
 		}})
 	if err != nil {
 		return BlockResponse{}, err
 	}
-
-	var result blockResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return BlockResponse{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
-	return result.Block, nil
+	return block, nil
 }
 
+// GetBlockByHash returns a block specified by hash.
 func (c *RpcClient) GetBlockByHash(hash string) (BlockResponse, error) {
-	resp, err := c.rpcCall("chain_get_block",
+	block, err := c.getBlock(
 		blockParams{blockIdentifier{
 			Hash: hash,
 		}})
 	if err != nil {
 		return BlockResponse{}, err
 	}
-
-	var result blockResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return BlockResponse{}, fmt.Errorf("failed to get result: %w", err)
-	}
-
-	return result.Block, nil
+	return block, nil
 }
 
-func (c *RpcClient) GetLatestBlockTransfers() ([]TransferResponse, error) {
-	resp, err := c.rpcCall("chain_get_block_transfers", nil)
+func (c *RpcClient) getBlockTransfers(params blockParams) ([]TransferResponse, error) {
+	resp, err := c.rpcCall("chain_get_block_transfers", params)
 	if err != nil {
 		return nil, err
 	}
@@ -147,42 +207,40 @@ func (c *RpcClient) GetLatestBlockTransfers() ([]TransferResponse, error) {
 	return result.Transfers, nil
 }
 
+// GetLatestBlockTransfers returns information about all transfers in the latest block.
+func (c *RpcClient) GetLatestBlockTransfers() ([]TransferResponse, error) {
+	transfers, err := c.getBlockTransfers(blockParams{})
+	if err != nil {
+		return nil, err
+	}
+	return transfers, nil
+}
+
+// GetBlockTransfersByHeight returns information about all transfers in a block specified by height.
 func (c *RpcClient) GetBlockTransfersByHeight(height uint64) ([]TransferResponse, error) {
-	resp, err := c.rpcCall("chain_get_block_transfers",
+	transfers, err := c.getBlockTransfers(
 		blockParams{blockIdentifier{
 			Height: height,
 		}})
 	if err != nil {
 		return nil, err
 	}
-
-	var result transferResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get result: %w", err)
-	}
-
-	return result.Transfers, nil
+	return transfers, nil
 }
 
+// GetBlockTransfersByHash returns information about all transfers in a block specified by hash.
 func (c *RpcClient) GetBlockTransfersByHash(blockHash string) ([]TransferResponse, error) {
-	resp, err := c.rpcCall("chain_get_block_transfers",
+	transfers, err := c.getBlockTransfers(
 		blockParams{blockIdentifier{
 			Hash: blockHash,
 		}})
 	if err != nil {
 		return nil, err
 	}
-
-	var result transferResult
-	err = json.Unmarshal(resp.Result, &result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get result: %w", err)
-	}
-
-	return result.Transfers, nil
+	return transfers, nil
 }
 
+// GetValidator returns information about era validators of the latest block.
 func (c *RpcClient) GetValidator() (ValidatorPesponse, error) {
 	resp, err := c.rpcCall("state_get_auction_info", nil)
 	if err != nil {
@@ -198,6 +256,7 @@ func (c *RpcClient) GetValidator() (ValidatorPesponse, error) {
 	return result.Validator, nil
 }
 
+// GetStatus retrieves node information.
 func (c *RpcClient) GetStatus() (StatusResult, error) {
 	resp, err := c.rpcCall("info_get_status", nil)
 	if err != nil {
@@ -213,6 +272,25 @@ func (c *RpcClient) GetStatus() (StatusResult, error) {
 	return result, nil
 }
 
+// GetMetrics retrieves node metrics.
+func (c *RpcClient) GetMetrics() (string, error) {
+	resp, err := c.httpCall("/metrics")
+	if err != nil {
+		return "", err
+	}
+	return resp, nil
+}
+
+// GetRpcSchema retrieves node's RPC schema.
+func (c *RpcClient) GetRpcSchema() (string, error) {
+	resp, err := c.rpcCall("rpc.discover", nil)
+	if err != nil {
+		return "", err
+	}
+	return string(resp.Result), nil
+}
+
+// GetPeers returns all peers connected to the node.
 func (c *RpcClient) GetPeers() (PeerResult, error) {
 	resp, err := c.rpcCall("info_get_peers", nil)
 	if err != nil {
@@ -228,10 +306,54 @@ func (c *RpcClient) GetPeers() (PeerResult, error) {
 	return result, nil
 }
 
-func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult, error) {
-	resp, err := c.rpcCall("chain_get_state_root_hash", map[string]string{
-		"state_root_hash": stateRootHash,
-	})
+func (c *RpcClient) getEraBySwitchBlock(params blockParams) (EraSummary, error) {
+	resp, err := c.rpcCall("chain_get_era_info_by_switch_block", params)
+	if err != nil {
+		return EraSummary{}, err
+	}
+
+	var result eraResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return EraSummary{}, err
+	}
+
+	if result.EraSummary == nil {
+		return EraSummary{}, fmt.Errorf("provided block is not a switch block")
+	}
+
+	return *result.EraSummary, nil
+}
+
+// GetLatestEraBySwitchBlock gets era by latest block. If latest block is not a switch block, it returns an error.
+func (c *RpcClient) GetLatestEraBySwitchBlock() (EraSummary, error) {
+	eraSummary, err := c.getEraBySwitchBlock(blockParams{})
+	if err != nil {
+		return EraSummary{}, err
+	}
+	return eraSummary, nil
+}
+
+// GetEraBySwitchBlockHeight gets era by switch block height. If provided block is not a switch block, it returns an error.
+func (c *RpcClient) GetEraBySwitchBlockHeight(height uint64) (EraSummary, error) {
+	eraSummary, err := c.getEraBySwitchBlock(blockParams{blockIdentifier{Height: height}})
+	if err != nil {
+		return EraSummary{}, err
+	}
+	return eraSummary, nil
+}
+
+// GetEraBySwitchBlockHash gets era by switch block hash. If provided block is not a switch block, it returns an error.
+func (c *RpcClient) GetEraBySwitchBlockHash(hash string) (EraSummary, error) {
+	eraSummary, err := c.getEraBySwitchBlock(blockParams{blockIdentifier{Hash: hash}})
+	if err != nil {
+		return EraSummary{}, err
+	}
+	return eraSummary, nil
+}
+
+func (c *RpcClient) getStateRootHash(params blockParams) (StateRootHashResult, error) {
+	resp, err := c.rpcCall("chain_get_state_root_hash", params)
 	if err != nil {
 		return StateRootHashResult{}, err
 	}
@@ -245,6 +367,76 @@ func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult,
 	return result, nil
 }
 
+// GetLatestStateRootHash returns state root hash for the latest block.
+func (c *RpcClient) GetLatestStateRootHash() (StateRootHashResult, error) {
+	result, err := c.getStateRootHash(blockParams{})
+	if err != nil {
+		return StateRootHashResult{}, err
+	}
+	return result, nil
+}
+
+// GetStateRootHashByHeight returns state root hash for a block specified by height.
+func (c *RpcClient) GetStateRootHashByHeight(height uint64) (StateRootHashResult, error) {
+	result, err := c.getStateRootHash(
+		blockParams{blockIdentifier{
+			Height: height,
+		}})
+	if err != nil {
+		return StateRootHashResult{}, err
+	}
+	return result, nil
+}
+
+// GetStateRootHashByHash returns state root hash for a block specified by hash.
+func (c *RpcClient) GetStateRootHashByHash(hash string) (StateRootHashResult, error) {
+	result, err := c.getStateRootHash(
+		blockParams{blockIdentifier{
+			Hash: hash,
+		}})
+	if err != nil {
+		return StateRootHashResult{}, err
+	}
+	return result, nil
+}
+
+// PutDeploy sends deploy to the node.
+func (c *RpcClient) PutDeploy(deploy Deploy) (DeployResponse, error) {
+	resp, err := c.rpcCall("account_put_deploy", map[string]interface{}{
+		"deploy": deploy,
+	})
+	if err != nil {
+		return DeployResponse{}, err
+	}
+
+	var result DeployResponse
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return DeployResponse{}, fmt.Errorf("failed to get result: %w", err)
+	}
+
+	return result, nil
+}
+
+func (c *RpcClient) httpCall(uri string) (string, error) {
+	host, _, _ := net.SplitHostPort(c.endpoint.Host)
+	endpointUrl := fmt.Sprintf("%s://%s:%s%s", c.endpoint.Scheme, host, "8888", uri)
+	resp, err := http.Get(endpointUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("request failed, status code - %d, response - %s", resp.StatusCode, string(b))
+	}
+
+	return string(b), nil
+}
+
 func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, error) {
 	body, err := json.Marshal(RpcRequest{
 		Version: "2.0",
@@ -255,7 +447,7 @@ func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, err
 		return RpcResponse{}, errors.Wrap(err, "failed to marshal json")
 	}
 
-	resp, err := http.Post(c.endpoint, "application/json", bytes.NewReader(body))
+	resp, err := http.Post(c.endpoint.String(), "application/json", bytes.NewReader(body))
 	if err != nil {
 		return RpcResponse{}, fmt.Errorf("failed to make request: %w", err)
 	}
@@ -351,6 +543,10 @@ type Proof struct {
 	Signature string `json:"signature"`
 }
 
+type DeployResponse struct {
+	DeployHash string `json:"deploy_hash"`
+}
+
 type DeployResult struct {
 	Deploy           JsonDeploy            `json:"deploy"`
 	ExecutionResults []JsonExecutionResult `json:"execution_results"`
@@ -404,6 +600,27 @@ type StoredValue struct {
 	ContractPackage *string               `json:"ContractPackage,omitempty"`
 	Transfer        *TransferResponse     `json:"Transfer,omitempty"`
 	DeployInfo      *JsonDeployInfo       `json:"DeployInfo,omitempty"`
+	EraInfo         *EraInfo              `json:"EraInfo,omitempty"`
+}
+
+type EraInfo struct {
+	SeigniorageAllocations []SeigniorageAllocation `json:"seigniorage_allocations"`
+}
+
+type SeigniorageAllocation struct {
+	Validator *Validator `json:"Validator,omitempty"`
+	Delegator *Delegator `json:"Delegator,omitempty"`
+}
+
+type Delegator struct {
+	Amount                string `json:"amount"`
+	ValidatorPublicKeyHex string `json:"validator_public_key"`
+	DelegatorPublicKeyHex string `json:"delegator_public_key"`
+}
+
+type Validator struct {
+	Amount                string `json:"amount"`
+	ValidatorPublicKeyHex string `json:"validator_public_key"`
 }
 
 type JsonCLValue struct {
@@ -463,23 +680,23 @@ type balanceResponse struct {
 }
 
 type ValidatorWeight struct {
-	PublicKey	string	`json:"public_key"`
-	Weight 		string	`json:"weight"`
+	PublicKey string `json:"public_key"`
+	Weight    string `json:"weight"`
 }
 
 type EraValidators struct {
-	EraId				int					`json:"era_id"`
-	ValidatorWeights	[]ValidatorWeight 	`json:"validator_weights"`
+	EraId            int               `json:"era_id"`
+	ValidatorWeights []ValidatorWeight `json:"validator_weights"`
 }
 
 type AuctionState struct {
-	StateRootHash	string	`json:"state_root_hash"`
-	BlockHeight 	uint64	`json:"block_height"`
-	EraValidators 	[]EraValidators `json:"era_validators"`
+	StateRootHash string          `json:"state_root_hash"`
+	BlockHeight   uint64          `json:"block_height"`
+	EraValidators []EraValidators `json:"era_validators"`
 }
 
 type ValidatorPesponse struct {
-	Version	string	`json:"jsonrpc"`
+	Version      string `json:"jsonrpc"`
 	AuctionState `json:"auction_state"`
 }
 
@@ -488,19 +705,43 @@ type validatorResult struct {
 }
 
 type StatusResult struct {
-	LastAddedBlock	BlockResponse `json:"last_added_block"`
-	BuildVersion	string `json:"build_version"`
+	ApiVersion            string         `json:"api_version"`
+	ChainspecName         string         `json:"chainspec_name"`
+	LastAddedBlock        *BlockResponse `json:"last_added_block,omitempty"`
+	NextUpgrade           *Upgrade       `json:"next_upgrade,omitempty"`
+	PublicSigningKey      string         `json:"our_public_signing_key"`
+	Peers                 []Peer         `json:"peers"`
+	RoundLength           *string        `json:"round_length,omitempty"`
+	StartingStateRootHash *string        `json:"starting_state_root_hash,omitempty"`
+	BuildVersion          string         `json:"build_version"`
+}
+
+type Upgrade struct {
+	ActivationPoint int    `json:"activation_point"`
+	ProtocolVersion string `json:"protocol_version"`
 }
 
 type Peer struct {
-	NodeId	string	`json:"node_id"`
-	Address	string	`json:"address"`
+	NodeId  string `json:"node_id"`
+	Address string `json:"address"`
 }
 
 type PeerResult struct {
-	Peers	[]Peer	`json:"peers"`
+	Peers []Peer `json:"peers"`
 }
 
 type StateRootHashResult struct {
-	StateRootHash	string `json:"state_root_hash"`
+	StateRootHash string `json:"state_root_hash"`
+}
+
+type eraResult struct {
+	EraSummary *EraSummary `json:"era_summary,omitempty"`
+}
+
+type EraSummary struct {
+	BlockHash     string      `json:"block_hash"`
+	EraId         int         `json:"era_id"`
+	MerkleProof   string      `json:"merkle_proof"`
+	StateRootHash string      `json:"state_root_hash"`
+	StoredValue   StoredValue `json:"stored_value"`
 }
