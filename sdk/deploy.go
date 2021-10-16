@@ -375,6 +375,9 @@ func StandardPayment(paymentAmount *big.Int) ExecutableDeployItem {
 
 // NewModuleBytes creates ModuleBytes with given byte slice and args and returns ExecutableDeployItem containing it.
 func NewModuleBytes(moduleBytes []byte, args []NamedArg) ExecutableDeployItem {
+	if args == nil {
+		args = []NamedArg{}
+	}
 	return ExecutableDeployItem{
 		Type: ExecutableDeployItemTypeModuleBytes,
 		ModuleBytes: &ModuleBytes{
@@ -386,6 +389,9 @@ func NewModuleBytes(moduleBytes []byte, args []NamedArg) ExecutableDeployItem {
 
 // NewStoredContractByHash creates StoredContractByHash with hash, entrypoint and args and returns ExecutableDeployItem containing it.
 func NewStoredContractByHash(hash keypair.Hash, entrypoint string, args []NamedArg) ExecutableDeployItem {
+	if args == nil {
+		args = []NamedArg{}
+	}
 	return ExecutableDeployItem{
 		Type: ExecutableDeployItemTypeStoredContractByHash,
 		StoredContractByHash: &StoredContractByHash{
@@ -398,6 +404,9 @@ func NewStoredContractByHash(hash keypair.Hash, entrypoint string, args []NamedA
 
 // NewStoredContractByName creates StoredContractByName with name, entrypoint and args and returns ExecutableDeployItem containing it.
 func NewStoredContractByName(name, entrypoint string, args []NamedArg) ExecutableDeployItem {
+	if args == nil {
+		args = []NamedArg{}
+	}
 	return ExecutableDeployItem{
 		Type: ExecutableDeployItemTypeStoredContractByName,
 		StoredContractByName: &StoredContractByName{
@@ -410,6 +419,9 @@ func NewStoredContractByName(name, entrypoint string, args []NamedArg) Executabl
 
 // NewStoredVersionedContractByHash creates StoredVersionedContractByHash with hash, entrypoint, optional version and args and returns ExecutableDeployItem containing it.
 func NewStoredVersionedContractByHash(hash keypair.Hash, entrypoint string, version *uint32, args []NamedArg) ExecutableDeployItem {
+	if args == nil {
+		args = []NamedArg{}
+	}
 	return ExecutableDeployItem{
 		Type: ExecutableDeployItemTypeStoredVersionedContractByHash,
 		StoredVersionedContractByHash: &StoredVersionedContractByHash{
@@ -423,6 +435,9 @@ func NewStoredVersionedContractByHash(hash keypair.Hash, entrypoint string, vers
 
 // NewStoredVersionedContractByName creates StoredVersionedContractByName with name, entrypoint, optional version and args and returns ExecutableDeployItem containing it.
 func NewStoredVersionedContractByName(name, entrypoint string, version *uint32, args []NamedArg) ExecutableDeployItem {
+	if args == nil {
+		args = []NamedArg{}
+	}
 	return ExecutableDeployItem{
 		Type: ExecutableDeployItemTypeStoredVersionedContractByName,
 		StoredVersionedContractByName: &StoredVersionedContractByName{
