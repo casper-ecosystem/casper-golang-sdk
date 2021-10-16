@@ -2,181 +2,233 @@ package sdk
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"github.com/r3labs/sse/v2"
+	"strings"
+	"time"
 )
 
-type BlockResult struct {
-	BlockHash	string		`json:"block_hash"`
-	ParentHash	string		`json:"parent_hash"`
-	TimeStamp	string		`json:"time_stamp"`
-	Eraid		int			`json:"eraid"`
-	Proposer	string		`json:"proposer"`
-	State		string		`json:"state"`
-	DeployCount	int			`json:"deploy_count"`
-	Height		uint64		`json:"height"`
-	Deploys		[]string	`json:"deploys"`
+type NodeSseChannelType int64
+type NodeSseEventType int64
+
+const (
+	NodeSseChannelTypeMain NodeSseChannelType = iota
+	NodeSseChannelTypeDeploys
+	NodeSseChannelTypeSigs
+)
+
+func (n NodeSseChannelType) Endpoint() string {
+	switch n {
+	case NodeSseChannelTypeMain:
+		return "/events/main"
+	case NodeSseChannelTypeDeploys:
+		return "/events/deploys"
+	case NodeSseChannelTypeSigs:
+		return "/events/sigs"
+	default:
+		return "unknown"
+	}
 }
 
-type Page struct {
-	Number	int		`json:"number"`
-	Url		string	`json:"url"`
-}
+const (
+	NodeSseEventTypeAll NodeSseEventType = iota
+	NodeSseEventTypeApiVersion
+	NodeSseEventTypeBlockAdded
+	NodeSseEventTypeDeployAccepted
+	NodeSseEventTypeDeployProcessed
+	NodeSseEventTypeFault
+	NodeSseEventTypeFinalitySignature
+	NodeSseEventTypeStep
+)
 
-type BlocksResult struct {
-	Data		[]BlockResult	`json:"data"`
-	PageCount	int				`json:"page_count"`
-	ItemCount	int				`json:"item_count"`
-	Pages 		[]Page			`json:"pages"`
-}
-
-type DeployRes struct {
-	DeployHash		string	`json:"deploy_hash"`
-	State			string	`json:"state"`
-	Cost 			int		`json:"cost"`
-	ErrorMessage	string	`json:"error_message"`
-	Account			string	`json:"account"`
-	BlockHash		string	`json:"block_hash"`
-}
-
-type DeployHash struct {
-	BlockHash		string	`json:"block_hash"`
-	DeployHash		string	`json:"deploy_hash"`
-	State 			string	`json:"state"`
-	Cost 			int		`json:"cost"`
-	ErrorMessage	string	`json:"error_message"`
-}
-
-type AccountDeploy struct {
-	DeployHash		string	`json:"deploy_hash"`
-	Account 		string	`json:"account"`
-	State			string	`json:"state"`
-	Cost			int		`json:"cost"`
-	ErrorMessage	string	`json:"error_message"`
-	BlockHash		string	`json:"block_hash"`
-}
-
-type AccountDeploysResult struct {
-	Data		[]AccountDeploy	`json:"data"`
-	PageCount	int				`json:"page_count"`
-	ItemCount	int				`json:"item_count"`
-	Pages		[]Page			`json:"pages"`
-}
-
-type TransferResult struct {
-	DeployHash	string	`json:"deploy_hash"`
-	SourcePurse	string	`json:"source_purse"`
-	TargetPurse	string	`json:"target_purse"`
-	Amount 		string	`json:"amount"`
-	Id			string	`json:"id"`
-	FromAccount	string	`json:"from_account"`
-	ToAccount	string	`json:"to_account"`
+func (n NodeSseEventType) String() string {
+	switch n {
+	case NodeSseEventTypeAll:
+		return ""
+	case NodeSseEventTypeApiVersion:
+		return "ApiVersion"
+	case NodeSseEventTypeBlockAdded:
+		return "BlockAdded"
+	case NodeSseEventTypeDeployAccepted:
+		return "DeployAccepted"
+	case NodeSseEventTypeDeployProcessed:
+		return "DeployProcessed"
+	case NodeSseEventTypeFault:
+		return "Fault"
+	case NodeSseEventTypeFinalitySignature:
+		return "FinalitySignature"
+	case NodeSseEventTypeStep:
+		return "Step"
+	default:
+		return "unknown"
+	}
 }
 
 type EventService struct {
-	Url	string
+	url string
 }
 
+// NewEventService create a new event service with specified URL.
+// URL should be without any path for example http://159.65.118.250:9999.
 func NewEventService(url string) *EventService {
 	return &EventService{
-		Url: url,
+		url: url,
 	}
 }
 
-func (e EventService) GetResponseData(endpoint string) ([]byte,error) {
-	get := fmt.Sprintf("%s%s", e.Url, endpoint)
-
-	resp, err := http.Get(get)
+// AwaitEvents returns a channel which streams events specified by parameters.
+func (e *EventService) AwaitEvents(channel NodeSseChannelType, eventType NodeSseEventType) (chan *EventResponse, error) {
+	client := sse.NewClientWithBufferSize(fmt.Sprintf("%s%s", e.url, channel.Endpoint()), 500000)
+	tempChan := make(chan *sse.Event)
+	eventChan := make(chan *EventResponse)
+	err := client.SubscribeChanRaw(tempChan)
 	if err != nil {
-		fmt.Errorf("failed to get data: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Errorf("failed to get response body: %w", err)
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		fmt.Errorf("request failed, status code - %d, response - %s", resp.StatusCode, string(b))
-	}
-	return b, nil
+	go func() {
+		for event := range tempChan {
+			if len(event.Data) == 0 {
+				continue
+			}
+			data := string(event.Data)
+			if !strings.Contains(data, eventType.String()) {
+				continue
+			}
+			var resp EventResponse
+			err := json.Unmarshal(event.Data, &resp)
+			if err != nil {
+				continue
+			}
+			eventChan <- &resp
+		}
+		close(eventChan)
+	}()
+	return eventChan, nil
 }
 
-func (e EventService) GetBlocks(page int, count int) (BlocksResult, error) {
-	endpoint := fmt.Sprintf("/blocks?page=%d&limit=%d", page, count)
-	resp, err := e.GetResponseData(endpoint)
-
+// AwaitDeploy waits for a deploy with deployHash and returns it.
+func (e *EventService) AwaitDeploy(deployHash string) (DeployProcessedEvent, error) {
+	eventChan, err := e.AwaitEvents(NodeSseChannelTypeMain, NodeSseEventTypeDeployProcessed)
 	if err != nil {
-		return BlocksResult{}, err
+		return DeployProcessedEvent{}, err
 	}
-
-	var blocks BlocksResult
-	parseResponseBody(resp, blocks)
-
-	return blocks, nil
+	for event := range eventChan {
+		if event.DeployProcessed != nil && event.DeployProcessed.DeployHash == deployHash {
+			return *event.DeployProcessed, nil
+		}
+	}
+	return DeployProcessedEvent{}, errors.New("could not await deploy")
 }
 
-func (e EventService) GetDeployByHash(deployHash string) (DeployResult, error) {
-	endpoint := fmt.Sprintf("/deploy/%s", deployHash)
-	resp, err := e.GetResponseData(endpoint)
-
+// AwaitNBlocks waits for n blocks and returns that block.
+func (e *EventService) AwaitNBlocks(n int) (BlockAddedEvent, error) {
+	eventChan, err := e.AwaitEvents(NodeSseChannelTypeMain, NodeSseEventTypeBlockAdded)
 	if err != nil {
-		return DeployResult{}, err
+		return BlockAddedEvent{}, err
 	}
-
-	var deploy DeployResult
-	parseResponseBody(resp, deploy)
-
-	return deploy, nil
+	var event *EventResponse
+	for i := 1; i <= n; i++ {
+		event = <-eventChan
+		if i == n {
+			return *event.BlockAdded, nil
+		}
+	}
+	return BlockAddedEvent{}, errors.New("could not await block")
 }
 
-func (e EventService) GetBlockByHash(blockHash string) (BlockResult, error) {
-	endpoint := fmt.Sprintf("/block/%s", blockHash)
-	resp, err := e.GetResponseData(endpoint)
-
+// AwaitNEras waits for n eras and returns first block in that era.
+func (e *EventService) AwaitNEras(n int) (BlockAddedEvent, error) {
+	eventChan, err := e.AwaitEvents(NodeSseChannelTypeMain, NodeSseEventTypeBlockAdded)
 	if err != nil {
-		return BlockResult{}, err
+		return BlockAddedEvent{}, err
 	}
-
-	var block BlockResult
-	parseResponseBody(resp, block)
-
-	return block, nil
+	currentEra := 0
+	erasPassed := 0
+	for event := range eventChan {
+		era := event.BlockAdded.Block.Header.EraID
+		if era > currentEra {
+			currentEra = era
+			erasPassed++
+		}
+		if erasPassed > n {
+			return *event.BlockAdded, nil
+		}
+	}
+	return BlockAddedEvent{}, errors.New("could not await era")
 }
 
-func (e EventService) GetAccountDeploy(accountHex string, page int, limit int) (AccountDeploysResult, error) {
-	endpoint := fmt.Sprintf("/accountDeploys/%s?page=%d&limit=%d", accountHex, page, limit)
-	resp, err := e.GetResponseData(endpoint)
-
+// AwaitUntilBlockN waits for a block with specified height and returns it.
+func (e *EventService) AwaitUntilBlockN(height int) (BlockAddedEvent, error) {
+	eventChan, err := e.AwaitEvents(NodeSseChannelTypeMain, NodeSseEventTypeBlockAdded)
 	if err != nil {
-		return AccountDeploysResult{}, err
+		return BlockAddedEvent{}, err
 	}
-
-	var accountDeploys AccountDeploysResult
-	parseResponseBody(resp, accountDeploys)
-
-	return accountDeploys, nil
+	for event := range eventChan {
+		if event.BlockAdded != nil && event.BlockAdded.Block.Header.Height == height {
+			return *event.BlockAdded, nil
+		}
+	}
+	return BlockAddedEvent{}, errors.New("could not await era")
 }
 
-func (e EventService) GetTransfersByAccountHash(accountHash string) ([]TransferResult, error) {
-	endpoint := fmt.Sprintf("/transfers/%s", accountHash)
-	resp, err := e.GetResponseData(endpoint)
-
+// AwaitUntilEraN waits for an era with specified id and returns the first block in that era.
+func (e *EventService) AwaitUntilEraN(eraId int) (BlockAddedEvent, error) {
+	eventChan, err := e.AwaitEvents(NodeSseChannelTypeMain, NodeSseEventTypeBlockAdded)
 	if err != nil {
-		return []TransferResult{}, err
+		return BlockAddedEvent{}, err
 	}
-
-	var transfers []TransferResult
-	parseResponseBody(resp, transfers)
-
-	return transfers, nil
+	for event := range eventChan {
+		if event.BlockAdded != nil && event.BlockAdded.Block.Header.EraID == eraId {
+			return *event.BlockAdded, nil
+		}
+	}
+	return BlockAddedEvent{}, err
 }
 
-func parseResponseBody(response []byte, dest interface{})  {
-	err := json.Unmarshal(response, &dest)
-	if err != nil {
-		fmt.Errorf("failed to parse response body: %w", err)
-	}
+type EventResponse struct {
+	ApiVersion        *string                 `json:"ApiVersion,omitempty"`
+	BlockAdded        *BlockAddedEvent        `json:"BlockAdded,omitempty"`
+	DeployAccepted    *DeployAcceptedEvent    `json:"DeployAccepted,omitempty"`
+	DeployProcessed   *DeployProcessedEvent   `json:"DeployProcessed,omitempty"`
+	Fault             *FaultEvent             `json:"Fault"`
+	FinalitySignature *FinalitySignatureEvent `json:"FinalitySignature"`
+	Step              *StepEvent              `json:"Step"`
+}
+
+type BlockAddedEvent struct {
+	BlockHash string        `json:"block_hash"`
+	Block     BlockResponse `json:"block"`
+}
+
+type DeployAcceptedEvent struct {
+	Deploy string `json:"deploy"`
+}
+
+type DeployProcessedEvent struct {
+	DeployHash      string              `json:"deploy_hash"`
+	Account         string              `json:"account"`
+	Timestamp       time.Time           `json:"timestamp"`
+	TTL             string              `json:"ttl"`
+	Dependencies    []string            `json:"dependencies"`
+	BlockHash       string              `json:"block_hash"`
+	ExecutionResult JsonExecutionResult `json:"execution_result"`
+}
+
+type FaultEvent struct {
+	EraId     int       `json:"era_id"`
+	PublicKey string    `json:"public_key"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type FinalitySignatureEvent struct {
+	BlockHash string `json:"block_hash"`
+	EraId     int    `json:"era_id"`
+	Signatue  string `json:"signatue"`
+	PublicKey string `json:"public_key"`
+}
+
+type StepEvent struct {
+	EraId           int    `json:"era_id"`
+	ExecutionEffect string `json:"execution_effect"`
 }

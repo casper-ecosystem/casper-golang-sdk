@@ -1,35 +1,33 @@
 package keypair
 
 import (
-	bs "encoding/base64"
-	"errors"
-	"github.com/robpike/filter"
+	"encoding/asn1"
+	"encoding/pem"
 	"os"
-	"strings"
 )
 
+type privateKeyDer struct {
+	Integer int
+	Object  struct {
+		Identifier asn1.ObjectIdentifier
+	} `asn1:"omitempty"`
+	Key []byte
+}
+
 //ReadBase64File reads the Base64 content of a file, get rid of PEM frames
-func ReadBase64File(path string) ([]byte,error) {
+func ReadBase64File(path string) ([]byte, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.New("can't read file")
+		return nil, err
 	}
-	resContent := bytesToString(content)
-	return ReadBase64WithPEM(resContent)
-}
-
-func bytesToString(data []byte) string {
-	return string(data[:])
-}
-
-func ReadBase64WithPEM(content string) ([]byte, error) {
-	base64 := strings.Split(content, "\n")
-	var selec = filter.Choose(base64, filterFunction).([]string)
-	join := strings.Join(selec, "")
-	res := strings.Trim(join, "\r\n")
-	return bs.StdEncoding.DecodeString(res)
-}
-
-func filterFunction(a string) bool {
-	return ! strings.HasPrefix(a, "-----")
+	block, _ := pem.Decode(content)
+	if len(block.Bytes) == 32 {
+		return block.Bytes, nil
+	}
+	var privateKey privateKeyDer
+	_, err = asn1.Unmarshal(block.Bytes, &privateKey)
+	if err != nil {
+		return nil, err
+	}
+	return privateKey.Key, nil
 }
