@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+
 	"github.com/pkg/errors"
 )
 
@@ -32,6 +34,7 @@ func (c *RpcClient) GetDeploy(hash string) (DeployResult, error) {
 
 	var result DeployResult
 	err = json.Unmarshal(resp.Result, &result)
+
 	if err != nil {
 		return DeployResult{}, fmt.Errorf("failed to get result: %w", err)
 	}
@@ -79,6 +82,28 @@ func (c *RpcClient) GetAccountBalance(stateRootHash, balanceUref string) (big.In
 	balance := big.Int{}
 	balance.SetString(result.BalanceValue, 10)
 	return balance, nil
+}
+
+func (c *RpcClient) GetAccountMainPurseURef(accountHash string) string {
+	block, err := c.GetLatestBlock()
+	if err != nil {
+		return ""
+	}
+
+	item, err := c.GetStateItem(block.Header.StateRootHash, accountHash, []string{})
+	if err != nil {
+		return ""
+	}
+
+	return item.Account.MainPurse
+}
+
+func (c *RpcClient) GetAccountBalanceByKeypair(stateRootHash string, key keypair.KeyPair) (big.Int, error) {
+	item, err := c.GetStateItem(stateRootHash, key.AccountHash(), []string{})
+	if err != nil {
+		return big.Int{}, err
+	}
+	return c.GetAccountBalance(stateRootHash, item.Account.MainPurse)
 }
 
 func (c *RpcClient) GetLatestBlock() (BlockResponse, error) {
@@ -245,12 +270,31 @@ func (c *RpcClient) GetStateRootHash(stateRootHash string) (StateRootHashResult,
 	return result, nil
 }
 
+func (c *RpcClient) PutDeploy(deploy Deploy) (JsonPutDeployRes, error) {
+	resp, err := c.rpcCall("account_put_deploy", map[string]interface{}{
+		"deploy": deploy,
+	})
+
+	if err != nil {
+		return JsonPutDeployRes{}, err
+	}
+
+	var result JsonPutDeployRes
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return JsonPutDeployRes{}, fmt.Errorf("failed to put deploy: %w", err)
+	}
+
+	return result, nil
+}
+
 func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, error) {
 	body, err := json.Marshal(RpcRequest{
 		Version: "2.0",
 		Method:  method,
 		Params:  params,
 	})
+
 	if err != nil {
 		return RpcResponse{}, errors.Wrap(err, "failed to marshal json")
 	}
@@ -307,14 +351,14 @@ type transferResult struct {
 }
 
 type TransferResponse struct {
-	ID         *string `json:"id,omitempty"`
-	DeployHash string  `json:"deploy_hash"`
-	From       string  `json:"from"`
-	To         string  `json:"to"`
-	Source     string  `json:"source"`
-	Target     string  `json:"target"`
-	Amount     string  `json:"amount"`
-	Gas        string  `json:"gas"`
+	ID         int64  `json:"id,omitempty"`
+	DeployHash string `json:"deploy_hash"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Source     string `json:"source"`
+	Target     string `json:"target"`
+	Amount     string `json:"amount"`
+	Gas        string `json:"gas"`
 }
 
 type blockResult struct {
@@ -360,6 +404,10 @@ type JsonDeploy struct {
 	Hash      string           `json:"hash"`
 	Header    JsonDeployHeader `json:"header"`
 	Approvals []JsonApproval   `json:"approvals"`
+}
+
+type JsonPutDeployRes struct {
+	Hash string `json:"deploy_hash"`
 }
 
 type JsonDeployHeader struct {
@@ -463,23 +511,23 @@ type balanceResponse struct {
 }
 
 type ValidatorWeight struct {
-	PublicKey	string	`json:"public_key"`
-	Weight 		string	`json:"weight"`
+	PublicKey string `json:"public_key"`
+	Weight    string `json:"weight"`
 }
 
 type EraValidators struct {
-	EraId				int					`json:"era_id"`
-	ValidatorWeights	[]ValidatorWeight 	`json:"validator_weights"`
+	EraId            int               `json:"era_id"`
+	ValidatorWeights []ValidatorWeight `json:"validator_weights"`
 }
 
 type AuctionState struct {
-	StateRootHash	string	`json:"state_root_hash"`
-	BlockHeight 	uint64	`json:"block_height"`
-	EraValidators 	[]EraValidators `json:"era_validators"`
+	StateRootHash string          `json:"state_root_hash"`
+	BlockHeight   uint64          `json:"block_height"`
+	EraValidators []EraValidators `json:"era_validators"`
 }
 
 type ValidatorPesponse struct {
-	Version	string	`json:"jsonrpc"`
+	Version      string `json:"jsonrpc"`
 	AuctionState `json:"auction_state"`
 }
 
@@ -488,19 +536,19 @@ type validatorResult struct {
 }
 
 type StatusResult struct {
-	LastAddedBlock	BlockResponse `json:"last_added_block"`
-	BuildVersion	string `json:"build_version"`
+	LastAddedBlock BlockResponse `json:"last_added_block"`
+	BuildVersion   string        `json:"build_version"`
 }
 
 type Peer struct {
-	NodeId	string	`json:"node_id"`
-	Address	string	`json:"address"`
+	NodeId  string `json:"node_id"`
+	Address string `json:"address"`
 }
 
 type PeerResult struct {
-	Peers	[]Peer	`json:"peers"`
+	Peers []Peer `json:"peers"`
 }
 
 type StateRootHashResult struct {
-	StateRootHash	string `json:"state_root_hash"`
+	StateRootHash string `json:"state_root_hash"`
 }

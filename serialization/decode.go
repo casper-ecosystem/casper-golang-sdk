@@ -346,14 +346,15 @@ func (dec *Decoder) DecodeStruct(v reflect.Value) (int, error) {
 }
 
 // DecodeUnion decodes union
-func (dec *Decoder) DecodeUnion(v reflect.Value) (int, error) {
+func (dec *Decoder) DecodeUnion(v reflect.Value, discriminant byte) (int, error) {
 	union := v.Interface().(Union)
 
-	discriminant, n, err := dec.DecodeByte()
-	if err != nil {
-		return n, err
-	}
+	//discriminant, n, err := dec.DecodeByte()
+	//if err != nil {
+	//	return n, err
+	//}
 
+	n := 0
 	vs := v.FieldByName(union.SwitchFieldName())
 
 	vs.SetUint(uint64(discriminant))
@@ -491,9 +492,9 @@ func (dec *Decoder) decode(v reflect.Value) (int, error) {
 		if _, ok := v.Interface().(Tuple); ok {
 			return dec.DecodeTuple(v)
 		}
-		if _, ok := v.Interface().(Union); ok {
-			return dec.DecodeUnion(v)
-		}
+		//if _, ok := v.Interface().(Union); ok {
+		//	return dec.DecodeUnion(v)
+		//}
 
 		return dec.DecodeStruct(v)
 	case reflect.Interface:

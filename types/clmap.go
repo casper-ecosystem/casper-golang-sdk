@@ -1,62 +1,52 @@
 package types
 
 import (
+	"encoding/hex"
 	"io"
 
 	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
 )
 
 type CLMap struct {
-	raw map[string]CLValue
+	KeyType   CLType
+	ValueType CLType
+	// key of the map is encoded CLValue of the KeyType type
+	Raw map[string]CLValue
 }
 
-func (m *CLMap) Load(key CLValue) (CLValue, bool) {
-	b := string(serialization.MustMarshal(key))
-	value, ok := m.raw[b]
-	return value, ok
-}
+func (clmap CLMap) Marshal(w io.Writer) (int, error) {
+	size := len(clmap.Raw)
 
-func (m *CLMap) Store(key, value CLValue) {
-	b := string(serialization.MustMarshal(key))
-	m.raw[b] = value
-}
+	bytes := make([]byte, 0)
 
-func (m *CLMap) Delete(key CLValue) {
-	b := string(serialization.MustMarshal(key))
-	delete(m.raw, b)
-}
-
-func (m *CLMap) Range(f func(key, value CLValue) bool) {
-	for key, value := range m.raw {
-		var keyCLValue CLValue
-		serialization.MustUnmarshal([]byte(key), &keyCLValue)
-		if !f(keyCLValue, value) {
-			break
-		}
-	}
-}
-
-func (m *CLMap) Marshal(w io.Writer) (int, error) {
-	enc := serialization.NewEncoder(w)
-
-	n := 0
-	for key, value := range m.raw {
-		n2, err := enc.EncodeFixedByteArray([]byte(key))
-		n += n2
-		if err != nil {
-			return n, err
-		}
-		n2, err = enc.Encode(value)
-		n += n2
-		if err != nil {
-			return n, err
-		}
+	sizeBytes, err := serialization.Marshal(int32(size))
+	if err != nil {
+		return 0, err
 	}
 
-	return n, nil
-}
+	bytes = append(bytes, sizeBytes...)
 
-func (m *CLMap) Unmarshal(r io.Reader) (int, error) {
-	// TODO
-	return 0, nil
+	for k, v := range clmap.Raw {
+		var keysBytes []byte
+		if clmap.KeyType == CLTypeString {
+			keysBytes, err = serialization.Marshal(k)
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			keysBytes, err = hex.DecodeString(k)
+			if err != nil {
+				return 0, err
+			}
+		}
+		valueBytes, err := serialization.Marshal(v)
+		if err != nil {
+			return 0, err
+		}
+
+		bytes = append(bytes, keysBytes...)
+		bytes = append(bytes, valueBytes...)
+	}
+
+	return w.Write(bytes)
 }

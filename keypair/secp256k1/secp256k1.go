@@ -5,15 +5,16 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+
 	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"golang.org/x/crypto/blake2b"
 )
 
 type secp256k1KeyPair struct {
-	seed 		[]byte
-	PublKey 	[]byte
-	PrivateKey 	[]byte
+	seed       []byte
+	PublKey    []byte
+	PrivateKey []byte
 }
 
 func Secp256k1Random() keypair.KeyPair {
@@ -35,7 +36,7 @@ func (key *secp256k1KeyPair) PublicKey() keypair.PublicKey {
 	pubKey, _ := key.keys()
 
 	return keypair.PublicKey{
-		Tag: key.KeyTag(),
+		Tag:        key.KeyTag(),
 		PubKeyData: pubKey,
 	}
 }
@@ -45,7 +46,7 @@ func (key *secp256k1KeyPair) Sign(mes []byte) keypair.Signature {
 	_, privKey := key.keys()
 	sign, _ := privKey.Sign(mes)
 	return keypair.Signature{
-		Tag: key.KeyTag(),
+		Tag:           key.KeyTag(),
 		SignatureData: sign,
 	}
 }
@@ -67,7 +68,7 @@ func (key *secp256k1KeyPair) AccountHash() string {
 	return fmt.Sprintf("account-hash-%s", hex.EncodeToString(hash[:]))
 }
 
-func (key *secp256k1KeyPair) keys() (secp256k1.PubKey, secp256k1.PrivKey){
+func (key *secp256k1KeyPair) keys() (secp256k1.PubKey, secp256k1.PrivKey) {
 	priv := secp256k1.GenPrivKey()
 	pub := priv.PubKey().Bytes()
 	return pub, priv
@@ -77,7 +78,7 @@ func (key *secp256k1KeyPair) keys() (secp256k1.PubKey, secp256k1.PrivKey){
 func AccountHex(publicKey []byte) string {
 	dst := make([]byte, hex.EncodedLen(len(publicKey)))
 	hex.Encode(dst, publicKey)
-	return "02"+string(dst)
+	return "02" + string(dst)
 }
 
 // ExportPublicKeyInPem exports the public key encoded in pem
@@ -109,7 +110,7 @@ func ParsePrivateKey(pemEncoded string) []byte {
 	block, _ := pem.Decode([]byte(pemEncoded))
 	x509Encoded := block.Bytes
 	privateKey, _ := x509.ParseECPrivateKey(x509Encoded)
-	res,_ := x509.MarshalECPrivateKey(privateKey)
+	res, _ := x509.MarshalECPrivateKey(privateKey)
 	return res
 }
 
@@ -137,7 +138,7 @@ func ParseKeyFiles(pubKeyPath, privKeyPath string) keypair.KeyPair {
 	priv := ParsePrivateKeyFile(privKeyPath)
 
 	keyPair := secp256k1KeyPair{
-		PublKey: pub,
+		PublKey:    pub,
 		PrivateKey: priv,
 	}
 	return &keyPair

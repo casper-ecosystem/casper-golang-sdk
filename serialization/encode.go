@@ -289,12 +289,8 @@ func (enc *Encoder) EncodeUnion(v reflect.Value) (int, error) {
 	u := v.Interface().(Union)
 
 	vs := byte(v.FieldByName(u.SwitchFieldName()).Uint())
-	n, err := enc.EncodeByte(vs)
 
-	if err != nil {
-		return n, err
-	}
-
+	n := 0
 	arm, ok := u.ArmForSwitch(vs)
 
 	// void arm, we're done
@@ -306,6 +302,23 @@ func (enc *Encoder) EncodeUnion(v reflect.Value) (int, error) {
 
 	if !vv.IsValid() || !ok {
 		return n, errors.New(fmt.Sprintf("invalid union switch: %d", vs))
+	}
+
+	if arm == "Option" {
+		n2, err := enc.EncodeOptional(vv)
+		if err != nil {
+			return n, err
+		}
+
+		return n + n2, nil
+	} else if arm == "Map" || arm == "URef" || arm == "Key"{
+		marsh := vv.Elem().Interface().(Marshaler)
+		n2, err := enc.Encode(marsh)
+		if err != nil {
+			return n, err
+		}
+
+		return n + n2, nil
 	}
 
 	n2, err := enc.encode(vv.Elem())

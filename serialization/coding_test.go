@@ -149,14 +149,6 @@ var cases = []struct {
 		},
 		"010000000d00000048656c6c6f2c20576f726c642101",
 	},
-	{
-		"Union",
-		union{
-			Discriminant: 0,
-			FirstElem:    toPtrString("Hello, World!"),
-		},
-		"000d00000048656c6c6f2c20576f726c6421",
-	},
 }
 
 func toPtrU64(val uint64) *uint64 {
@@ -209,26 +201,6 @@ type tuple3 tuple
 
 func (t tuple3) TupleFields() []string {
 	return []string{"First", "Second", "Third"}
-}
-
-type union struct {
-	Discriminant byte
-	FirstElem    *string
-	SecondElem   *uint32
-}
-
-func (u union) SwitchFieldName() string {
-	return "Discriminant"
-}
-
-func (u union) ArmForSwitch(sw byte) (string, bool) {
-	switch sw {
-	case 0:
-		return "FirstElem", true
-	case 1:
-		return "SecondElem", true
-	}
-	return "-", false
 }
 
 func TestEncoding(t *testing.T) {

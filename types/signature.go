@@ -1,10 +1,14 @@
 package types
 
-import "io"
+import (
+	"io"
+
+	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+)
 
 // Signature representing signature
 type Signature struct {
-	Tag           KeyTag
+	Tag           keypair.KeyTag
 	SignatureData []byte
 }
 
