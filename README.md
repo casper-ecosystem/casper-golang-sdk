@@ -1,5 +1,13 @@
 # Casper Go SDK
 
+### Install
+
+`go get -u github.com/casper-ecosystem/casper-golang-sdk`
+
+### Running tests
+
+`go test ./...`
+
 ### Keypair package usage
 
 #### ED25519
