@@ -113,7 +113,7 @@ func (e EventService) GetBlocks(page int, count int) (BlocksResult, error) {
 	}
 
 	var blocks BlocksResult
-	parseResponseBody(resp, blocks)
+	parseResponseBody(resp, &blocks)
 
 	return blocks, nil
 }
@@ -127,7 +127,7 @@ func (e EventService) GetDeployByHash(deployHash string) (DeployResult, error) {
 	}
 
 	var deploy DeployResult
-	parseResponseBody(resp, deploy)
+	parseResponseBody(resp, &deploy)
 
 	return deploy, nil
 }
@@ -141,7 +141,7 @@ func (e EventService) GetBlockByHash(blockHash string) (BlockResult, error) {
 	}
 
 	var block BlockResult
-	parseResponseBody(resp, block)
+	parseResponseBody(resp, &block)
 
 	return block, nil
 }
@@ -155,7 +155,7 @@ func (e EventService) GetAccountDeploy(accountHex string, page int, limit int) (
 	}
 
 	var accountDeploys AccountDeploysResult
-	parseResponseBody(resp, accountDeploys)
+	parseResponseBody(resp, &accountDeploys)
 
 	return accountDeploys, nil
 }
@@ -169,13 +169,13 @@ func (e EventService) GetTransfersByAccountHash(accountHash string) ([]TransferR
 	}
 
 	var transfers []TransferResult
-	parseResponseBody(resp, transfers)
+	parseResponseBody(resp, &transfers)
 
 	return transfers, nil
 }
 
 func parseResponseBody(response []byte, dest interface{})  {
-	err := json.Unmarshal(response, &dest)
+	err := json.Unmarshal(response, dest)
 	if err != nil {
 		fmt.Errorf("failed to parse response body: %w", err)
 	}
