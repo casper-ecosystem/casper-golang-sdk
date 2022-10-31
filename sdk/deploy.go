@@ -969,7 +969,7 @@ func buildTransfer(amount *big.Int, target *keypair.PublicKey, sourcePurse strin
 		accountHex = ed25519.AccountHash(target.PubKeyData)
 	}
 	if target.Tag == keypair.KeyTagSecp256k1 {
-		accountHex = hex.EncodeToString(append(target.PubKeyData, 0x02))
+		accountHex = hex.EncodeToString(append([]byte{0x02}, target.PubKeyData...))
 	}
 
 	idValue := Value{
