@@ -967,9 +967,9 @@ func buildTransfer(amount *big.Int, target *keypair.PublicKey, sourcePurse strin
 
 	if target.Tag == keypair.KeyTagEd25519 {
 		accountHex = ed25519.AccountHash(target.PubKeyData)
-	} else {
-		// FIXME: implement secp256k1 module
-		return nil
+	}
+	if target.Tag == keypair.KeyTagSecp256k1 {
+		accountHex = hex.EncodeToString(append([]byte{0x02}, target.PubKeyData...))
 	}
 
 	idValue := Value{
@@ -1006,17 +1006,34 @@ func buildTransfer(amount *big.Int, target *keypair.PublicKey, sourcePurse strin
 		argsOrder = append(make([]string, 0), "amount", "target", "sourcePurse", "id")
 	}
 
-	args := NewRunTimeArgs(map[string]Value{
-		"amount": {
-			Tag:         types.CLTypeU512,
-			StringBytes: hex.EncodeToString(amountBytes),
-		},
-		"target": {
-			Tag:         types.CLTypeByteArray,
-			StringBytes: accountHex,
-		},
-		"id": idValue,
-	}, argsOrder)
+	var args *RuntimeArgs
+	if target.Tag == keypair.KeyTagEd25519 {
+		args = NewRunTimeArgs(map[string]Value{
+			"amount": {
+				Tag:         types.CLTypeU512,
+				StringBytes: hex.EncodeToString(amountBytes),
+			},
+			"target": {
+				Tag:         types.CLTypeByteArray,
+				StringBytes: accountHex,
+			},
+			"id": idValue,
+		}, argsOrder)
+	}
+
+	if target.Tag == keypair.KeyTagSecp256k1 {
+		args = NewRunTimeArgs(map[string]Value{
+			"amount": {
+				Tag:         types.CLTypeU512,
+				StringBytes: hex.EncodeToString(amountBytes),
+			},
+			"target": {
+				Tag:         types.CLTypePublicKey,
+				StringBytes: accountHex,
+			},
+			"id": idValue,
+		}, argsOrder)
+	}
 
 	if sourcePurse != "" {
 		args.Args["source"] = Value{Tag: types.CLTypeURef, StringBytes: sourcePurse}
