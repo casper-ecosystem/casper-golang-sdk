@@ -84,6 +84,28 @@ func (c *RpcClient) GetAccountBalance(stateRootHash, balanceUref string) (big.In
 	return balance, nil
 }
 
+func (c *RpcClient) GetAccountInfo(pubkey string, hash string) (AccountResponse, error) {
+	type Param struct {
+		BlockIdentifier struct {
+			Hash string `json:"Hash"`
+		} `json:"block_identifier"`
+		PublicKey string `json:"public_key"`
+	}
+	var param Param
+	param.BlockIdentifier.Hash = hash
+	param.PublicKey = pubkey
+	resp, err := c.rpcCall("state_get_account_info", param)
+	if err != nil {
+		return AccountResponse{}, err
+	}
+	var result accountResult
+	err = json.Unmarshal(resp.Result, &result)
+	if err != nil {
+		return AccountResponse{}, fmt.Errorf("failed to get result: %w", err)
+	}
+	return result.Block, nil
+}
+
 func (c *RpcClient) GetAccountMainPurseURef(accountHash string) string {
 	block, err := c.GetLatestBlock()
 	if err != nil {
@@ -321,7 +343,7 @@ func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, err
 	}
 
 	if rpcResponse.Error != nil {
-		return rpcResponse, fmt.Errorf("rpc call failed, code - %d, message - %s", rpcResponse.Error.Code, rpcResponse.Error.Message)
+		return rpcResponse, rpcResponse.Error
 	}
 
 	return rpcResponse, nil
@@ -339,11 +361,6 @@ type RpcResponse struct {
 	Id      string          `json:"id"`
 	Result  json.RawMessage `json:"result"`
 	Error   *RpcError       `json:"error,omitempty"`
-}
-
-type RpcError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
 }
 
 type transferResult struct {
@@ -471,6 +488,18 @@ type JsonAccount struct {
 type NamedKey struct {
 	Name string `json:"name"`
 	Key  string `json:"key"`
+}
+
+type accountResult struct {
+	Block AccountResponse `json:"account"`
+}
+
+type AccountResponse struct {
+	AccountHash      string           `json:"account_hash"`
+	ActionThresholds ActionThresholds `json:"action_thresholds"`
+	AssociatedKeys   []AssociatedKey  `json:"associated_keys"`
+	MainPurse        string           `json:"main_purse"`
+	NamedKeys        []interface{}    `json:"named_keys"`
 }
 
 type AssociatedKey struct {

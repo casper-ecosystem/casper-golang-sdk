@@ -2,12 +2,14 @@ package sdk
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
+	"errors"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-var client = NewRpcClient("http://3.136.227.9:7777/rpc")
+var client = NewRpcClient("http://65.21.238.180:7777/rpc")
 
 func TestRpcClient_GetLatestBlock(t *testing.T) {
 	_, err := client.GetLatestBlock()
@@ -48,6 +50,31 @@ func TestRpcClient_GetAccountBalance(t *testing.T) {
 	if err != nil {
 		t.Errorf("can't get account balance")
 	}
+}
+
+func TestRpcClient_GetAccountInfo(t *testing.T) {
+	pubkey := "020237037ff4845669e59d3e7698e7d58eb97ca378960ac57478a86a6a3535460292"
+	bad_pubkey := "020237037ff4845669e59d3e7698e7d58ee97ca378960ac57478a86a6a3535460292"
+
+	block := "a705d5cf0bca0ec2cc0ffceb2913900669b1234c230340086304989d67dde7d7"
+
+	_, err := client.GetAccountInfo(bad_pubkey, block)
+	var rpcerror *RpcError
+
+	if err != nil {
+		if errors.As(err, &rpcerror) {
+			if rpcerror.Code != -32003 {
+				t.Errorf("bad error code")
+			}
+		}
+	}
+	_, err = client.GetAccountInfo(pubkey, block)
+	if err != nil {
+		t.Errorf("can't get account info")
+	}
+	//t.Errorf("can't get account info")
+	//log.Println("Running test...")
+	//log.Println(err)
 }
 
 func TestRpcClient_GetAccountBalanceByKeypair(t *testing.T) {
@@ -131,7 +158,7 @@ func TestRpcClient_GetPeers(t *testing.T) {
 	}
 }
 
-//make sure your account has balance
+// make sure your account has balance
 func TestRpcClient_PutDeploy(t *testing.T) {
 	deploy := NewTransferToUniqAddress(*source, UniqAddress{
 		PublicKey:  dest,
