@@ -310,12 +310,66 @@ func (c *RpcClient) PutDeploy(deploy Deploy) (JsonPutDeployRes, error) {
 	return result, nil
 }
 
+type EraInfoResult struct {
+	APIVersion string     `json:"api_version"`
+	EraSummary EraSummary `json:"era_summary"`
+}
+type EraSummary struct {
+	BlockHash     string             `json:"block_hash"`
+	EraID         int                `json:"era_id"`
+	StoredValue   StoredValueEraInfo `json:"stored_value"`
+	StateRootHash string             `json:"state_root_hash"`
+}
+type StoredValueEraInfo struct {
+	EraInfo EraInfo `json:"EraInfo"`
+}
+type DelegatorEraInfo struct {
+	DelegatorPublicKey string `json:"delegator_public_key"`
+	ValidatorPublicKey string `json:"validator_public_key"`
+	Amount             string `json:"amount"`
+}
+type ValidatorEraInfo struct {
+	ValidatorPublicKey string `json:"validator_public_key"`
+	Amount             string `json:"amount"`
+}
+type SeigniorageAllocations struct {
+	Delegator DelegatorEraInfo `json:"Delegator,omitempty"`
+	Validator ValidatorEraInfo `json:"Validator,omitempty"`
+}
+type EraInfo struct {
+	SeigniorageAllocations []SeigniorageAllocations `json:"seigniorage_allocations"`
+}
+
+func (c *RpcClient) GetEraInfo(height int) (EraInfoResult, error) {
+	//fmt.Println("height", height)
+	resp, err := c.rpcCall("chain_get_era_info_by_switch_block", []map[string]interface{}{
+		{
+			"Height": height,
+		},
+	})
+
+	if err != nil {
+		return EraInfoResult{}, err
+	}
+	//log.Println(string(resp.Result))
+
+	var result EraInfoResult
+	err = json.Unmarshal(resp.Result, &result)
+	//log.Println(result)
+	if err != nil {
+		return EraInfoResult{}, fmt.Errorf("failed to get era info: %w", err)
+	}
+
+	return result, nil
+}
+
 func (c *RpcClient) rpcCall(method string, params interface{}) (RpcResponse, error) {
 	body, err := json.Marshal(RpcRequest{
 		Version: "2.0",
 		Method:  method,
 		Params:  params,
 	})
+	//fmt.Println(string(body))
 
 	if err != nil {
 		return RpcResponse{}, errors.Wrap(err, "failed to marshal json")

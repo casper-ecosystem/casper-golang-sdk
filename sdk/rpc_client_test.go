@@ -158,6 +158,13 @@ func TestRpcClient_GetPeers(t *testing.T) {
 	}
 }
 
+func TestRpcClient_GetEraInfo(t *testing.T) {
+	_, err := client.GetEraInfo(1639836)
+	if err != nil {
+		t.Errorf("can't get era info")
+	}
+}
+
 // make sure your account has balance
 func TestRpcClient_PutDeploy(t *testing.T) {
 	deploy := NewTransferToUniqAddress(*source, UniqAddress{
