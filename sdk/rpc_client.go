@@ -539,6 +539,12 @@ type balanceResponse struct {
 	BalanceValue string `json:"balance_value"`
 }
 
+type AuctionState struct {
+	StateRootHash string          `json:"state_root_hash"`
+	BlockHeight   uint64          `json:"block_height"`
+	EraValidators []EraValidators `json:"era_validators"`
+	Bids          []Bid           `json:"bids,omitempty"`
+}
 type ValidatorWeight struct {
 	PublicKey string `json:"public_key"`
 	Weight    string `json:"weight"`
@@ -549,10 +555,23 @@ type EraValidators struct {
 	ValidatorWeights []ValidatorWeight `json:"validator_weights"`
 }
 
-type AuctionState struct {
-	StateRootHash string          `json:"state_root_hash"`
-	BlockHeight   uint64          `json:"block_height"`
-	EraValidators []EraValidators `json:"era_validators"`
+type Bid struct {
+	PublicKey string  `json:"public_key"`
+	BidData   BidData `json:"bid"`
+}
+
+type BidData struct {
+	BondingPurse   string      `json:"bonding_purse"`
+	StakedAmount   string      `json:"staked_amount"`
+	DelegationRate int         `json:"delegation_rate"`
+	Delegators     []Delegator `json:"delegators"`
+	Inactive       bool        `json:"inactive"`
+}
+type Delegator struct {
+	PublicKey    string `json:"public_key"`
+	StakedAmount string `json:"staked_amount"`
+	BondingPurse string `json:"bonding_purse"`
+	Delegatee    string `json:"delegatee"`
 }
 
 type ValidatorPesponse struct {
