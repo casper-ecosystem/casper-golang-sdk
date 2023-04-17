@@ -2,7 +2,7 @@
 
 ### Install
 
-`go get -u github.com/casper-ecosystem/casper-golang-sdk`
+`go get -u github.com/Simplewallethq/casper-golang-sdk`
 
 ### Running tests
 
@@ -13,7 +13,7 @@
 #### ED25519
 
 ```go
-import "github.com/casper-ecosystem/casper-golang-sdk/keypair/ed25519"
+import "github.com/Simplewallethq/casper-golang-sdk/keypair/ed25519"
 
 ...
 
@@ -92,7 +92,7 @@ More simple types examples can be found at _serialization/coding_test.go_
 ###### Encoding
 
 ```go
-import "github.com/casper-ecosystem/casper-golang-sdk/serialization"
+import "github.com/Simplewallethq/casper-golang-sdk/serialization"
 
 ...
 
@@ -105,7 +105,7 @@ res, err := serialization.Marshal(int64(1024)) // res == "0004000000000000"
 
 ```go
 import (
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
 	"encoding/hex"
 	)
 
@@ -129,7 +129,7 @@ More CLValue types examples can be found at _types/coding_test.go_
 ###### Encoding
 
 ```go
-import "github.com/casper-ecosystem/casper-golang-sdk/serialization"
+import "github.com/Simplewallethq/casper-golang-sdk/serialization"
 
 ...
 
@@ -164,7 +164,7 @@ dest := types.CLValue{
 
 ```go
 import (
-    "github.com/casper-ecosystem/casper-golang-sdk/serialization"
+    "github.com/Simplewallethq/casper-golang-sdk/serialization"
     "encoding/hex"
     )
 
@@ -330,8 +330,8 @@ type Deploy struct {
 
 ```go
 import (
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair/ed25519"
-	"github.com/casper-ecosystem/casper-golang-sdk/sdk"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair/ed25519"
+	"github.com/Simplewallethq/casper-golang-sdk/sdk"
 	)
 
 ...
@@ -460,7 +460,7 @@ func NewDeployParams(accountPublicKey keypair.PublicKey, chainName string, depen
 #### Usage example
 
 ```go
-import "github.com/casper-ecosystem/casper-golang-sdk/sdk"
+import "github.com/Simplewallethq/casper-golang-sdk/sdk"
 
 ...
 
@@ -734,7 +734,7 @@ func (c *RpcClient) PutDeploy(deploy Deploy) (JsonPutDeployRes, error)
 #### Usage example
 
 ```go
-import "github.com/casper-ecosystem/casper-golang-sdk/sdk"
+import "github.com/Simplewallethq/casper-golang-sdk/sdk"
 
 ...
 

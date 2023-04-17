@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -6,7 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"golang.org/x/crypto/blake2b"
 )

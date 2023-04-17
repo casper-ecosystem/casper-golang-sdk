@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/blake2b"
 )

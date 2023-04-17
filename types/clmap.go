@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"io"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
 )
 
 type CLMap struct {

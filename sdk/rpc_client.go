@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair"
 
 	"github.com/pkg/errors"
 )

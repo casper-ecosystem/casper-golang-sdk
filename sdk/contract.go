@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"math/big"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
-	"github.com/casper-ecosystem/casper-golang-sdk/types"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/types"
 )
 
 type Contract struct {

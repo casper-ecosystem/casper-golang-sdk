@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
-	"github.com/casper-ecosystem/casper-golang-sdk/types"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/types"
 )
 
 type ValueMap struct {

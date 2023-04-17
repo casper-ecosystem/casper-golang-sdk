@@ -6,7 +6,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/serialization"
+	"github.com/Simplewallethq/casper-golang-sdk/serialization"
 )
 
 func UnmarshalCLValue(src []byte, dest *CLValue) (int, error) {

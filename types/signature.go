@@ -3,7 +3,7 @@ package types
 import (
 	"io"
 
-	"github.com/casper-ecosystem/casper-golang-sdk/keypair"
+	"github.com/Simplewallethq/casper-golang-sdk/keypair"
 )
 
 // Signature representing signature
