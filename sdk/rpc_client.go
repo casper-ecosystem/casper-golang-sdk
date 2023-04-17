@@ -236,13 +236,13 @@ func (c *RpcClient) GetValidator() (ValidatorPesponse, error) {
 		return ValidatorPesponse{}, err
 	}
 
-	var result validatorResult
+	var result ValidatorPesponse
 	err = json.Unmarshal(resp.Result, &result)
 	if err != nil {
 		return ValidatorPesponse{}, fmt.Errorf("failed to get result: #{err}")
 	}
 
-	return result.Validator, nil
+	return result, nil
 }
 
 func (c *RpcClient) GetStatus() (StatusResult, error) {
@@ -543,7 +543,7 @@ type AuctionState struct {
 	StateRootHash string          `json:"state_root_hash"`
 	BlockHeight   uint64          `json:"block_height"`
 	EraValidators []EraValidators `json:"era_validators"`
-	Bids          []Bid           `json:"bids,omitempty"`
+	Bids          []Bid           `json:"bids"`
 }
 type ValidatorWeight struct {
 	PublicKey string `json:"public_key"`
@@ -577,10 +577,6 @@ type Delegator struct {
 type ValidatorPesponse struct {
 	Version      string `json:"jsonrpc"`
 	AuctionState `json:"auction_state"`
-}
-
-type validatorResult struct {
-	Validator ValidatorPesponse `json:"validator"`
 }
 
 type StatusResult struct {
